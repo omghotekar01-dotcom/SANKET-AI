@@ -6,6 +6,7 @@ on:
     paths:
       - "ml/training/bootstrap_public.py"
       - "ml/training/dataset.py"
+      - "ml/training/train_template.py"
       - "apps/api/app/services/temporal_model.py"
       - "apps/api/requirements-public-train.txt"
       - "scripts/install_holistic_task.py"
@@ -42,9 +43,9 @@ jobs:
         run: |
           python -m ml.training.bootstrap_public --classes 8 --max-per-class 8 --min-per-class 3
 
-      - name: Verify trained artifact loads
+      - name: Verify trained artifact loads and accepts some holdout coverage
         run: |
-          python -c "from pathlib import Path; from apps.api.app.services.temporal_model import TemporalTemplateModel; m=TemporalTemplateModel(Path('ml/artifacts/demo-v1')); assert m.loaded, m.load_error; assert len(m.labels)>=3; print(m.version, m.labels)"
+          python -c "import json; from pathlib import Path; from apps.api.app.services.temporal_model import TemporalTemplateModel; root=Path('ml/artifacts/demo-v1'); m=TemporalTemplateModel(root); assert m.loaded, m.load_error; report=json.loads((root/'evaluation.json').read_text()); assert len(m.labels)>=3; assert report['test']['coverage']>0, report['test']; print(m.version, m.labels, report['test']['accepted_accuracy'], report['test']['coverage'])"
 
       - name: Commit derived model artifact
         run: |
@@ -57,6 +58,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No artifact changes to commit."
           else
-            git commit -m "model: add SANKET-trained public isolated-sign starter [skip ci]"
+            git commit -m "model: recalibrate SANKET public isolated-sign starter [skip ci]"
             git push origin HEAD:main
           fi
