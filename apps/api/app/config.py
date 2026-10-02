@@ -17,7 +17,7 @@ def _bool(name: str, default: bool) -> bool:
 @dataclass(frozen=True)
 class Settings:
     app_name: str = "SANKET AI"
-    app_version: str = "0.3.0"
+    app_version: str = "0.4.0"
     environment: str = os.getenv("APP_ENV", "development")
     web_origin: str = os.getenv("WEB_ORIGIN", "http://localhost:5173")
     model_dir: Path = REPO_ROOT / os.getenv("MODEL_DIR", "ml/artifacts/demo-v1")

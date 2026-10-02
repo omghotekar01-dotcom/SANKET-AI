@@ -94,3 +94,25 @@ def test_core_vocabulary_normalization_and_coverage():
     assert result['supported_count'] == 3
     assert result['total'] == 21
     assert 'help' in result['missing']
+
+
+def test_domain_packs_are_externalized_and_normalized():
+    from apps.api.app.services.context_service import DOMAIN_PACKS, DOMAINS, domain_descriptors, rerank
+    assert set(DOMAINS) >= {'general','classroom','hospital','emergency','public_service'}
+    assert any(item['id'] == 'hospital' and item['label'] == 'Hospital' for item in domain_descriptors())
+    assert 'doctor' in DOMAIN_PACKS['hospital']['boost']
+    probs = rerank(['doctor','teacher'], [0.5,0.5], 'hospital')
+    assert probs[0] > probs[1]
+
+
+def test_feedback_endpoint_persists_correction_without_auto_training():
+    r = client.post('/api/feedback', json={
+        'utterance_id':'turn-test',
+        'raw_label':'hello',
+        'accepted':False,
+        'corrected_label':'help',
+        'note':'test correction',
+    })
+    assert r.status_code == 200
+    assert r.json()['stored'] is True
+    assert r.json()['retraining'] is False

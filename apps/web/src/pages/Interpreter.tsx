@@ -21,6 +21,9 @@ export function Interpreter() {
   const [testConfidence,setTestConfidence]=useState<number|null>(null)
   const [demoActive,setDemoActive]=useState(false)
   const [demoState,setDemoState]=useState('')
+  const [feedbackStatus,setFeedbackStatus]=useState('')
+  const [showCorrection,setShowCorrection]=useState(false)
+  const [correction,setCorrection]=useState('')
   const r=useRecognition(domain)
 
   useEffect(()=>{api<Array<{id:string;label:string}>>('/api/domains').then(setDomains).catch(()=>{})},[])
@@ -68,6 +71,31 @@ export function Interpreter() {
       setActionNotice('Sign action: local visual/haptic danger alert')
     }
   },[r.prediction,safeActions])
+
+
+  const latestISL=[...r.transcript].reverse().find(turn=>turn.source==='ISL')
+  const submitFeedback=async(accepted:boolean)=>{
+    if(!latestISL)return
+    const raw=latestISL.text.trim().toLowerCase().replace(/\s+/g,'_')
+    const corrected=correction.trim().toLowerCase().replace(/[^a-z0-9 _-]/g,'').replace(/\s+/g,'_')
+    if(!accepted&&!corrected){setFeedbackStatus('Enter the correct sign label first.');return}
+    try{
+      const result=await api<any>('/api/feedback',{
+        method:'POST',
+        body:JSON.stringify({
+          utterance_id:latestISL.id,
+          raw_label:raw,
+          accepted,
+          corrected_label:accepted?null:corrected,
+          note:'live-interpreter-user-feedback',
+        }),
+      })
+      setFeedbackStatus(result.stored?'Feedback stored locally. It does not retrain automatically.':'Feedback was not stored.')
+      setShowCorrection(false);setCorrection('')
+    }catch(error){
+      setFeedbackStatus(error instanceof Error?error.message:String(error))
+    }
+  }
 
   const demo=async()=>{
     try{
@@ -161,6 +189,23 @@ export function Interpreter() {
 
       <aside className="studio-rail">
         <Transcript turns={r.transcript} onClear={r.reset}/>
+
+        <section className="feedback-card">
+          <div><span className="section-label">Human correction</span><strong>Was the last accepted sign right?</strong></div>
+          {latestISL
+            ?<>
+              <p>Last accepted: <b>{latestISL.text}</b>. Feedback is stored as metadata only and never changes model weights automatically.</p>
+              <div className="control-row compact-controls">
+                <button className="secondary" onClick={()=>void submitFeedback(true)}>Correct</button>
+                <button className="secondary" onClick={()=>{setShowCorrection(v=>!v);setFeedbackStatus('')}}>Fix label</button>
+              </div>
+              {showCorrection&&<div className="feedback-fix-row"><input value={correction} onChange={e=>setCorrection(e.target.value)} placeholder="correct sign label"/><button className="primary" onClick={()=>void submitFeedback(false)}>Save correction</button></div>}
+              {feedbackStatus&&<small>{feedbackStatus}</small>}
+            </>
+            :<p>Recognize a sign first; correction controls appear here after an accepted live ISL turn.</p>}
+        </section>
+
+
 
         <section className="readiness-card">
           <div className="panel-head"><div><span className="section-label">System</span><h2>Readiness</h2></div><button className="text-button" onClick={r.reconnect}>Retry</button></div>

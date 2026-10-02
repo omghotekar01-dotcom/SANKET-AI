@@ -1,0 +1,22 @@
+{
+  "general": {
+    "label": "General",
+    "boost": []
+  },
+  "classroom": {
+    "label": "Classroom",
+    "boost": ["hello", "thank you", "yes", "no", "student", "teacher", "repeat", "understand", "water", "school"]
+  },
+  "hospital": {
+    "label": "Hospital",
+    "boost": ["help", "doctor", "hospital", "water", "pain", "medicine", "patient", "yes", "no", "repeat", "sick", "healthy"]
+  },
+  "emergency": {
+    "label": "Emergency",
+    "boost": ["help", "doctor", "police", "fire", "accident", "danger", "stop", "water", "pain", "hospital", "medicine"]
+  },
+  "public_service": {
+    "label": "Public service",
+    "boost": ["help", "police", "where", "name", "yes", "no", "repeat", "school", "hospital"]
+  }
+}

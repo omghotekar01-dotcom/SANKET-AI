@@ -64,19 +64,30 @@ Do not upgrade those individually without migrating the perception layer and ret
 - Text → verified ISL phrase clip registry with honest fallback.
 - Local verified-clip upload workflow.
 - Emergency communication, high contrast, larger text, reduced motion, ARIA live transcript and haptics capability detection.
+- Local experimental environmental-sound alert classifier with a deterministic in-app self-test; microphone audio is not recorded or uploaded.
+- Human correction controls that store accepted/fixed labels as feedback metadata without automatic retraining.
+- JSON domain packs for General/Classroom/Hospital/Emergency/Public Service context reranking.
 - WebRTC two-peer call/signaling prototype for same-network/two-tab demos.
 - Deterministic **labelled Demo Replay** fallback.
 - Diagnostics and real evaluation endpoints.
 - GitHub CI for backend/ML tests, vision compatibility and production web build.
 
-## What still requires your real project data
+## Recognition coverage and what still needs real project data
 
-Two pieces cannot be truthfully generated as placeholders:
+The one-click setup installs a verified external MIT-licensed **50-word temporal bootstrap recognizer**. SANKET does not claim that model's upstream accuracy as our own.
 
-1. **A trained ISL vocabulary model** — collect consented takes for your final signs, then click **Train model now** in Training Studio.
+The exact 21-sign project contract is:
+
+`HELLO, THANK YOU, YES, NO, HELP, DOCTOR, HOSPITAL, WATER, PAIN, MEDICINE, POLICE, FIRE, DANGER, ACCIDENT, STOP, WHERE, NAME, STUDENT, TEACHER, REPEAT, UNDERSTAND`.
+
+The bootstrap recognizer directly covers 8 of those 21: **HELLO, THANK YOU, DOCTOR, HOSPITAL, MEDICINE, POLICE, STUDENT, TEACHER**. The UI/API now calculate this intersection at runtime and mark every unsupported contract sign visibly as missing.
+
+Two things still require defensible project data rather than fabricated placeholders:
+
+1. **The remaining core signs** — collect consented real samples in Training Studio or integrate a separately licensed/evaluated recognizer. Experimental public-data extension models are not activated unless their held-out quality gate passes.
 2. **Verified reverse-ISL videos** — record/validate your own clips or use assets whose terms permit your use/redistribution.
 
-Until a trained artifact exists, SANKET can still test camera + MediaPipe tracking, but it will correctly show that the sign model needs training.
+A locally trained SANKET model is preferred only after its held-out evaluation passes the quality gate.
 
 ## First live test
 
@@ -87,11 +98,11 @@ Expected readiness:
 ```text
 Local API      Connected
 Vision         MediaPipe ready
-Sign model     Needs training
+Sign model     Bootstrap · 50
 Tracking       —
 ```
 
-Press **Camera**. As you move, the Left / Right / Body / Face indicators should become active.
+Press **Camera**. As you move, the Left / Right / Body / Face indicators should become active. Open the **Project contract** card to see exactly which of the 21 required signs are live on the current machine.
 
 ## Train your first vocabulary
 
