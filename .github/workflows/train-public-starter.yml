@@ -41,11 +41,27 @@ jobs:
 
       - name: Train SANKET public isolated-sign starter
         run: |
-          python -m ml.training.bootstrap_public --classes 8 --max-per-class 8 --min-per-class 3
+          python -m ml.training.bootstrap_public --classes 6 --max-per-class 12 --min-per-class 8
 
-      - name: Verify trained artifact loads and accepts some holdout coverage
+      - name: Verify trained artifact has useful selective performance
         run: |
-          python -c "import json; from pathlib import Path; from apps.api.app.services.temporal_model import TemporalTemplateModel; root=Path('ml/artifacts/demo-v1'); m=TemporalTemplateModel(root); assert m.loaded, m.load_error; report=json.loads((root/'evaluation.json').read_text()); assert len(m.labels)>=3; assert report['test']['coverage']>0, report['test']; print(m.version, m.labels, report['test']['accepted_accuracy'], report['test']['coverage'])"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from apps.api.app.services.temporal_model import TemporalTemplateModel
+          root=Path("ml/artifacts/demo-v1")
+          m=TemporalTemplateModel(root)
+          assert m.loaded, m.load_error
+          report=json.loads((root/"evaluation.json").read_text())
+          test=report["test"]
+          assert len(m.labels) >= 5, m.labels
+          assert test["coverage"] >= 0.30, test
+          print("model",m.version)
+          print("labels",m.labels)
+          print("top1",test["top1_accuracy"])
+          print("accepted_accuracy",test["accepted_accuracy"])
+          print("coverage",test["coverage"])
+          PY
 
       - name: Commit derived model artifact
         run: |
@@ -58,6 +74,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No artifact changes to commit."
           else
-            git commit -m "model: recalibrate SANKET public isolated-sign starter [skip ci]"
+            git commit -m "model: strengthen SANKET public starter vocabulary [skip ci]"
             git push origin HEAD:main
           fi
