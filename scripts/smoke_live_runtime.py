@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
 from apps.api.app.config import settings
 from apps.api.app.services.bootstrap_model import BootstrapKerasModel
 from apps.api.app.services.landmark_service import HolisticLandmarkService
+from apps.api.app.services.vocabulary_service import core_coverage
 
 
 def main() -> int:
@@ -36,6 +37,14 @@ def main() -> int:
     model = BootstrapKerasModel(settings.bootstrap_dir)
     assert model.loaded, model.load_error
     assert len(model.labels) == 50, len(model.labels)
+    coverage = core_coverage(model.labels)
+    expected_core = {
+        "hello", "thank_you", "doctor", "hospital",
+        "medicine", "police", "student", "teacher",
+    }
+    assert set(coverage["supported"]) == expected_core, coverage
+    assert coverage["supported_count"] == 8, coverage
+    assert coverage["total"] == 21, coverage
 
     # Run one real inference pass too, not only model deserialization.
     prediction = model.predict(np.zeros((30, 378), dtype=np.float32))
@@ -45,7 +54,8 @@ def main() -> int:
 
     print(
         "Live runtime smoke test: OK - MediaPipe Solutions processed a "
-        f"384x216 JPEG; OpenVINO loaded and inferred {len(model.labels)} classes."
+        f"384x216 JPEG; OpenVINO loaded and inferred {len(model.labels)} classes; "
+        f"core contract coverage {coverage['supported_count']}/{coverage['total']}."
     )
     return 0
 

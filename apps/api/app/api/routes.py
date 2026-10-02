@@ -13,7 +13,7 @@ from ..db.session import LocalStore
 from ..schemas import CollectorStartRequest, CollectorStopRequest, FeedbackRequest, TextToISLRequest
 from ..services.clip_service import ClipService
 from ..services.collector_service import CollectorService
-from ..services.context_service import DOMAINS
+from ..services.context_service import DOMAINS, domain_descriptors
 from ..services.replay_service import SCENARIOS
 from ..services.vocabulary_service import CORE_VOCABULARY, core_coverage
 
@@ -66,7 +66,7 @@ def config():
 
 @router.get("/domains")
 def domains():
-    return [{"id": key, "label": key.replace("_", " ").title()} for key in DOMAINS]
+    return domain_descriptors()
 
 
 @router.get("/signs")
