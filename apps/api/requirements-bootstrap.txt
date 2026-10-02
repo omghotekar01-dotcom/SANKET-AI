@@ -1,5 +1,7 @@
 # Runtime for the MIT-licensed 50-word bootstrap BiLSTM.
-# Use the newer TensorFlow/Keras serialization generation used by the
-# upstream .keras artifact. TensorFlow 2.20 also uses modern ml-dtypes,
-# which coexists with MediaPipe's optional JAX dependency.
-tensorflow==2.20.0
+# Keep this coherent with MediaPipe 0.10.21 on Windows.
+# JAX is not used by SANKET at runtime and is removed after MediaPipe install.
+tensorflow==2.17.1
+keras==3.5.0
+protobuf==4.25.9
+ml-dtypes==0.4.1

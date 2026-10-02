@@ -57,7 +57,10 @@ echo [3/10] Installing pinned MediaPipe runtime...
 python -m pip install -r apps\api\requirements-vision.txt
 if errorlevel 1 goto :vision_fail
 
-echo [4/10] Installing 50-word recognizer runtime...
+echo [4/10] Installing coherent 50-word recognizer runtime...
+REM MediaPipe installs JAX as an optional dependency; SANKET does not use JAX.
+REM Remove it before TensorFlow so ml-dtypes/protobuf can remain compatible.
+python -m pip uninstall -y jax jaxlib >nul 2>nul
 python -m pip install -r apps\api\requirements-bootstrap.txt
 if errorlevel 1 goto :model_fail
 
@@ -93,7 +96,10 @@ python -m pytest apps\api\tests -q
 if errorlevel 1 goto :fail
 
 echo [10/10] Final full-runtime verification...
+set "PYTHONPATH=%CD%"
 python scripts\check_env.py
+if errorlevel 1 goto :fail
+python -c "from apps.api.app.runtime import model, perception; assert perception.available, perception.reason; assert model.loaded, model.load_error; assert len(model.labels)==50; print('Integrated SANKET runtime: OK -',model.backend,model.version)"
 if errorlevel 1 goto :fail
 
 echo.

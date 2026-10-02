@@ -2,6 +2,7 @@
 setlocal EnableExtensions
 cd /d "%~dp0"
 title SANKET AI
+set "PYTHONPATH=%CD%"
 
 echo.
 echo ==========================================
