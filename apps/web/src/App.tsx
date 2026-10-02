@@ -8,6 +8,50 @@ import { Diagnostics } from './pages/Diagnostics'
 import { Collector } from './pages/Collector'
 
 type Page='interpret'|'conversation'|'call'|'emergency'|'accessibility'|'diagnostics'|'collect'
-const PAGES:Array<{id:Page;label:string;icon:string}>=[{id:'interpret',label:'Interpret',icon:'◉'},{id:'conversation',label:'Conversation',icon:'↔'},{id:'call',label:'Call',icon:'▣'},{id:'emergency',label:'Emergency',icon:'!'},{id:'accessibility',label:'Accessibility',icon:'Aa'},{id:'diagnostics',label:'Diagnostics',icon:'◇'},{id:'collect',label:'Collect data',icon:'＋'}]
-export default function App(){const [page,setPage]=useState<Page>('interpret');const content={interpret:<Interpreter/>,conversation:<Conversation/>,call:<Call/>,emergency:<Emergency/>,accessibility:<Accessibility/>,diagnostics:<Diagnostics/>,collect:<Collector/>}[page]
- return <div className="app-shell"><header className="topbar"><button className="brand" onClick={()=>setPage('interpret')}><span className="brand-mark">S</span><span><strong>SANKET AI</strong><small>PEAKY CODERS · HACKTOPIA 2026</small></span></button><div className="top-note">Local-first · Confidence-aware · Multimodal ISL</div></header><aside className="sidebar" aria-label="Primary navigation">{PAGES.map(p=><button key={p.id} className={page===p.id?'nav active':'nav'} onClick={()=>setPage(p.id)}><span>{p.icon}</span>{p.label}</button>)}</aside><main>{content}</main></div>}
+
+const PAGES:Array<{id:Page;label:string;short:string}>=[
+  {id:'interpret',label:'Live interpreter',short:'LI'},
+  {id:'conversation',label:'Two-way conversation',short:'TW'},
+  {id:'call',label:'Video call',short:'VC'},
+  {id:'emergency',label:'Emergency',short:'SOS'},
+  {id:'accessibility',label:'Accessibility',short:'A11Y'},
+  {id:'diagnostics',label:'System health',short:'SYS'},
+  {id:'collect',label:'Training studio',short:'DATA'},
+]
+
+export default function App(){
+  const [page,setPage]=useState<Page>('interpret')
+  const content={
+    interpret:<Interpreter/>,
+    conversation:<Conversation/>,
+    call:<Call/>,
+    emergency:<Emergency/>,
+    accessibility:<Accessibility/>,
+    diagnostics:<Diagnostics/>,
+    collect:<Collector/>,
+  }[page]
+  const active=PAGES.find(p=>p.id===page)!
+
+  return <div className="app-shell">
+    <aside className="sidebar" aria-label="Primary navigation">
+      <button className="brand" onClick={()=>setPage('interpret')} aria-label="Open SANKET AI live interpreter">
+        <span className="brand-mark">S</span>
+        <span className="brand-copy"><strong>SANKET</strong><small>Communication bridge</small></span>
+      </button>
+      <nav className="nav-list">
+        {PAGES.map(p=><button key={p.id} className={page===p.id?'nav active':'nav'} onClick={()=>setPage(p.id)}>
+          <span className="nav-short">{p.short}</span><span>{p.label}</span>
+        </button>)}
+      </nav>
+      <div className="sidebar-footer"><span className="quiet-dot"/><span>Local-first prototype</span><small>Peaky Coders · Hacktopia 2026</small></div>
+    </aside>
+
+    <div className="app-main-shell">
+      <header className="topbar">
+        <div><span className="topbar-kicker">SANKET AI</span><strong>{active.label}</strong></div>
+        <div className="top-note"><span className="privacy-dot"/>Camera frames are not recorded by default</div>
+      </header>
+      <main>{content}</main>
+    </div>
+  </div>
+}
