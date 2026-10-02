@@ -8,6 +8,7 @@ on:
       - "ml/training/dataset.py"
       - "apps/api/app/services/temporal_model.py"
       - "apps/api/requirements-public-train.txt"
+      - "scripts/install_holistic_task.py"
       - ".github/workflows/train-public-starter.yml"
 
 permissions:
@@ -34,8 +35,8 @@ jobs:
           python -m pip install -r apps/api/requirements-vision.txt
           python -m pip install -r apps/api/requirements-public-train.txt
 
-      - name: Download verified Holistic task asset
-        run: python scripts/install_bootstrap.py
+      - name: Download official Holistic task asset
+        run: python scripts/install_holistic_task.py
 
       - name: Train SANKET public isolated-sign starter
         run: |

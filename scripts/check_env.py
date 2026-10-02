@@ -8,7 +8,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BOOTSTRAP = ROOT / "ml" / "artifacts" / "bootstrap-50"
+VISION_DIR = ROOT / "ml" / "artifacts" / "bootstrap-50"
+LOCAL_MODEL = ROOT / "ml" / "artifacts" / "demo-v1"
 
 
 def _version(name: str) -> str | None:
@@ -51,32 +52,18 @@ def main() -> int:
     print("mediapipe   ", f"{'OK' if mediapipe_ok else 'INCOMPATIBLE'} - {mediapipe_version}")
     ok &= mediapipe_ok
 
-    tensorflow_version = _version("tensorflow")
-    tf_ok = bool(tensorflow_version and tensorflow_version.startswith("2.16."))
-    print("tensorflow  ", f"{'OK' if tf_ok else 'MISSING/INCOMPATIBLE'} - {tensorflow_version}")
-    ok &= tf_ok
-
-    model_path = BOOTSTRAP / "isl_model_solo.keras"
-    holistic_path = BOOTSTRAP / "holistic_landmarker.task"
-    manifest_path = BOOTSTRAP / "manifest.json"
-
-    model_ok = model_path.exists() and model_path.stat().st_size == 9_783_895
-    holistic_ok = holistic_path.exists() and holistic_path.stat().st_size == 13_683_609
-    manifest_ok = False
-    if manifest_path.exists():
-        try:
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            manifest_ok = (
-                manifest.get("source_commit") == "d77b58e663fa5a30aef475002415b96b7d468f96"
-                and len(manifest.get("labels", [])) == 50
-            )
-        except Exception:
-            manifest_ok = False
-
-    print("bootstrap ML ", "OK" if model_ok else "MISSING")
+    holistic_path = VISION_DIR / "holistic_landmarker.task"
+    holistic_ok = holistic_path.exists() and holistic_path.stat().st_size >= 10_000_000
     print("holistic task", "OK" if holistic_ok else "MISSING")
-    print("bootstrap meta", "OK" if manifest_ok else "MISSING/INVALID")
-    ok &= model_ok and holistic_ok and manifest_ok
+    ok &= holistic_ok
+
+    try:
+        from mediapipe.tasks.python import vision as mv
+        task_api_ok = hasattr(mv, "HolisticLandmarker")
+    except Exception:
+        task_api_ok = False
+    print("holistic API ", "OK" if task_api_ok else "MISSING/INCOMPATIBLE")
+    ok &= task_api_ok
 
     for exe in ["node", "npm"]:
         path = shutil.which(exe)
@@ -87,13 +74,22 @@ def main() -> int:
     print("web deps     ", "OK" if node_modules.exists() else "MISSING")
     ok &= node_modules.exists()
 
-    local_model = ROOT / "ml" / "artifacts" / "demo-v1" / "manifest.json"
-    print(
-        "Local model: ",
-        "PRESENT - will override bootstrap"
-        if local_model.exists()
-        else "not trained; verified 50-word bootstrap will be used",
-    )
+    manifest_path = LOCAL_MODEL / "manifest.json"
+    model_path = LOCAL_MODEL / "model.npz"
+    if manifest_path.exists() and model_path.exists():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            print(
+                "sign model   ",
+                f"OK - {manifest.get('model_version')} / {len(manifest.get('labels', []))} classes",
+            )
+        except Exception:
+            print("sign model   PRESENT but manifest is unreadable")
+            ok = False
+    else:
+        print("sign model   NOT INSTALLED YET - camera tracking still works")
+
+    print("external ML  optional; not required for startup")
     print("Raw video storage default: OFF")
     return 0 if ok else 1
 

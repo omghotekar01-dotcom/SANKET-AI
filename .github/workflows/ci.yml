@@ -15,20 +15,18 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install backend, vision and bootstrap runtime
+      - name: Install backend and vision runtime
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r apps/api/requirements-dev.txt
           python -m pip install -r apps/api/requirements-vision.txt
-          python -m pip install -r apps/api/requirements-bootstrap.txt
 
-      - name: Download and verify pinned bootstrap assets
-        run: python scripts/install_bootstrap.py
+      - name: Install official Holistic task asset
+        run: python scripts/install_holistic_task.py
 
-      - name: Verify Holistic Tasks and load 50-class model
+      - name: Verify Holistic Tasks runtime
         run: |
           python -c "import mediapipe as mp; from mediapipe.tasks.python import vision as mv; assert mp.__version__=='0.10.21'; assert hasattr(mv,'HolisticLandmarker')"
-          python -c "from pathlib import Path; import numpy as np; from apps.api.app.services.bootstrap_model import BootstrapKerasModel; m=BootstrapKerasModel(Path('ml/artifacts/bootstrap-50')); assert m.loaded, m.load_error; p=m.predict(np.zeros((30,378),dtype=np.float32)); assert len(p.labels)==50 and p.probabilities.shape==(50,); print(m.version,p.top_label,float(p.probabilities.max()))"
 
       - name: Compile Python
         run: python -m compileall -q apps ml scripts
