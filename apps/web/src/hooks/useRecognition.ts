@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { WS_BASE } from '../lib/api'
+import { API_BASE, WS_BASE, apiHealth } from '../lib/api'
 import type { PredictionEvent, TrackingEvent, TrackingInfo, TranscriptTurn } from '../types'
 
 const EMPTY_TRACKING: TrackingInfo = {left_hand:false,right_hand:false,pose:false,face:false,quality:0}
+
+export type BackendState = 'checking' | 'online' | 'offline'
+export type CapabilityState = 'unknown' | 'ready' | 'unavailable'
+export type ModelState = 'unknown' | 'loaded' | 'missing'
 
 export function useRecognition(domain: string, collectorId?: string | null) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -11,114 +15,287 @@ export function useRecognition(domain: string, collectorId?: string | null) {
   const streamRef = useRef<MediaStream | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const timerRef = useRef<number | null>(null)
+  const reconnectRef = useRef<number | null>(null)
   const busyRef = useRef(false)
+  const shouldRunRef = useRef(false)
+
   const [running,setRunning] = useState(false)
   const [socketState,setSocketState] = useState('disconnected')
+  const [backendState,setBackendState] = useState<BackendState>('checking')
+  const [perceptionState,setPerceptionState] = useState<CapabilityState>('unknown')
+  const [modelState,setModelState] = useState<ModelState>('unknown')
   const [tracking,setTracking] = useState<TrackingInfo>(EMPTY_TRACKING)
   const [prediction,setPrediction] = useState<PredictionEvent | null>(null)
   const [transcript,setTranscript] = useState<TranscriptTurn[]>([])
-  const [message,setMessage] = useState('Ready to interpret')
-  const [modelLoaded,setModelLoaded] = useState(false)
-  const [perceptionAvailable,setPerceptionAvailable] = useState(false)
+  const [message,setMessage] = useState('Checking local recognition service…')
   const [landmarkLatency,setLandmarkLatency] = useState<number | null>(null)
   const [ttsEnabled,setTtsEnabled] = useState(true)
+
+  const applyHealth = useCallback((health:any) => {
+    setBackendState('online')
+    setPerceptionState(health?.perception_available ? 'ready' : 'unavailable')
+    setModelState(health?.model_loaded ? 'loaded' : 'missing')
+  },[])
+
+  const refreshHealth = useCallback(async() => {
+    try {
+      const health = await apiHealth()
+      applyHealth(health)
+      return health
+    } catch {
+      setBackendState('offline')
+      setPerceptionState('unknown')
+      setModelState('unknown')
+      return null
+    }
+  },[applyHealth])
+
+  useEffect(()=>{
+    void refreshHealth()
+    const timer=window.setInterval(()=>{void refreshHealth()},5000)
+    return()=>window.clearInterval(timer)
+  },[refreshHealth])
 
   const drawOverlay = useCallback((event: TrackingEvent) => {
     const canvas=overlayRef.current, video=videoRef.current
     if (!canvas || !video) return
-    const w=video.clientWidth || 640, h=video.clientHeight || 480
+    const w=video.clientWidth || 960, h=video.clientHeight || 540
     if (canvas.width !== w) canvas.width=w
     if (canvas.height !== h) canvas.height=h
     const ctx=canvas.getContext('2d'); if (!ctx) return
     ctx.clearRect(0,0,w,h)
-    const draw=(points:number[][], radius:number) => {
+
+    const draw=(points:number[][], radius:number, alpha:number) => {
       ctx.beginPath()
       for (const [x,y] of points) {
         ctx.moveTo((1-x)*w+radius,y*h)
         ctx.arc((1-x)*w,y*h,radius,0,Math.PI*2)
       }
-      ctx.fillStyle='rgba(93, 225, 255, .9)'; ctx.fill()
+      ctx.fillStyle=`rgba(117, 178, 255, ${alpha})`
+      ctx.fill()
     }
-    draw(event.overlay.left_hand,3); draw(event.overlay.right_hand,3); draw(event.overlay.pose,4)
+    draw(event.overlay.left_hand,2.6,.95)
+    draw(event.overlay.right_hand,2.6,.95)
+    draw(event.overlay.pose,3.2,.58)
   },[])
 
   const speak = useCallback((text:string) => {
     if (!ttsEnabled || !('speechSynthesis' in window)) return
     window.speechSynthesis.cancel()
     const utterance=new SpeechSynthesisUtterance(text)
-    utterance.rate=0.95; window.speechSynthesis.speak(utterance)
+    utterance.rate=0.96
+    window.speechSynthesis.speak(utterance)
   },[ttsEnabled])
 
+  const clearReconnect = () => {
+    if (reconnectRef.current !== null) {
+      window.clearTimeout(reconnectRef.current)
+      reconnectRef.current=null
+    }
+  }
+
   const connectSocket = useCallback(() => {
-    wsRef.current?.close()
+    clearReconnect()
+    const old=wsRef.current
+    if (old) {
+      old.onclose=null
+      old.close()
+    }
+
     const query=collectorId ? `?collector_id=${encodeURIComponent(collectorId)}` : ''
     const ws=new WebSocket(`${WS_BASE}/ws/recognize${query}`)
-    ws.binaryType='arraybuffer'; wsRef.current=ws; setSocketState('connecting')
-    ws.onopen=()=>setSocketState('connected')
-    ws.onclose=()=>{setSocketState('disconnected');busyRef.current=false}
-    ws.onerror=()=>setMessage('Recognition connection error — camera can be stopped safely')
+    ws.binaryType='arraybuffer'
+    wsRef.current=ws
+    setSocketState('connecting')
+
+    ws.onopen=()=>{
+      setSocketState('connected')
+      setBackendState('online')
+      ws.send(JSON.stringify({type:'set_domain',domain}))
+    }
+
+    ws.onerror=()=>{
+      setBackendState('offline')
+      setMessage(`Recognition service is offline at ${API_BASE}. Restart SANKET AI and this page will reconnect automatically.`)
+    }
+
+    ws.onclose=()=>{
+      busyRef.current=false
+      if (!shouldRunRef.current) {
+        setSocketState('disconnected')
+        return
+      }
+      setSocketState('reconnecting')
+      reconnectRef.current=window.setTimeout(()=>connectSocket(),1400)
+    }
+
     ws.onmessage=(raw) => {
       let event:any
       try { event=JSON.parse(raw.data) } catch { return }
+
       if (event.type==='ready') {
-        setModelLoaded(Boolean(event.model_loaded)); setPerceptionAvailable(Boolean(event.perception_available))
-        if (!event.perception_available) setMessage(event.perception_reason || 'Perception unavailable')
-        else if (!event.model_loaded) setMessage('Tracking ready · train/load a model for live sign recognition')
+        setBackendState('online')
+        setModelState(event.model_loaded ? 'loaded' : 'missing')
+        setPerceptionState(event.perception_available ? 'ready' : 'unavailable')
+        if (!event.perception_available) {
+          setMessage(event.perception_reason || 'Vision runtime is not ready. Run setup_windows.bat again.')
+        } else if (!event.model_loaded) {
+          setMessage('Vision is ready. Collect a few sign samples and train your first vocabulary to enable recognition.')
+        } else {
+          setMessage('Ready — keep your hands and upper body visible.')
+        }
         return
       }
+
       if (event.type==='tracking') {
-        const t=event as TrackingEvent; setTracking(t.tracking);setLandmarkLatency(t.landmark_latency_ms);drawOverlay(t);busyRef.current=false;return
+        const t=event as TrackingEvent
+        setTracking(t.tracking)
+        setLandmarkLatency(t.landmark_latency_ms)
+        drawOverlay(t)
+        busyRef.current=false
+        return
       }
-      if (event.type==='model_unavailable') { setMessage(event.message || 'Model unavailable');busyRef.current=false;return }
-      if (event.type==='perception_error') { setMessage(event.message || 'Perception error');busyRef.current=false;return }
+
+      if (event.type==='model_unavailable') {
+        setModelState('missing')
+        setMessage('Tracking is working. Train or load a sign model to turn landmarks into words.')
+        busyRef.current=false
+        return
+      }
+
+      if (event.type==='perception_error') {
+        setPerceptionState('unavailable')
+        setMessage(event.message || 'Vision processing failed.')
+        busyRef.current=false
+        return
+      }
+
       if (event.type==='prediction') {
-        const p=event as PredictionEvent;setPrediction(p);setMessage(p.reason || p.state);busyRef.current=false
+        const p=event as PredictionEvent
+        setPrediction(p)
+        setMessage(p.reason || p.state)
+        busyRef.current=false
         if (p.state==='ACCEPTED' && p.display_text) {
-          setTranscript(prev=>[...prev,{id:crypto.randomUUID(),source:'ISL' as const,text:p.display_text!,confidence:p.confidence,at:Date.now()}].slice(-50))
+          setTranscript(prev=>[...prev,{
+            id:crypto.randomUUID(),
+            source:'ISL' as const,
+            text:p.display_text!,
+            confidence:p.confidence,
+            at:Date.now(),
+          }].slice(-50))
           speak(p.display_text)
         }
       }
     }
-  },[collectorId,drawOverlay,speak])
+  },[collectorId,domain,drawOverlay,speak])
 
-  useEffect(()=>{ if (running) connectSocket() },[collectorId]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(()=>{ wsRef.current?.send(JSON.stringify({type:'set_domain',domain})) },[domain])
+  useEffect(()=>{
+    if (running) connectSocket()
+  },[collectorId]) // reconnect collector sessions with their new collector id
+
+  useEffect(()=>{
+    if (wsRef.current?.readyState===WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({type:'set_domain',domain}))
+    }
+  },[domain])
 
   const start = useCallback(async()=>{
     if (running) return
+    shouldRunRef.current=true
+    setMessage('Starting camera and recognition…')
+
     try {
-      const stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480},facingMode:'user'},audio:false})
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('This browser does not expose camera access.')
+      }
+      const stream=await navigator.mediaDevices.getUserMedia({
+        video:{width:{ideal:1280},height:{ideal:720},facingMode:'user'},
+        audio:false,
+      })
       streamRef.current=stream
-      if (videoRef.current) { videoRef.current.srcObject=stream; await videoRef.current.play() }
-      connectSocket(); setRunning(true); setMessage('Camera active · place upper body and hands inside frame')
+      if (videoRef.current) {
+        videoRef.current.srcObject=stream
+        await videoRef.current.play()
+      }
+
+      setRunning(true)
+      connectSocket()
+
       const tick=async()=>{
         const video=videoRef.current, canvas=captureRef.current, ws=wsRef.current
         if (!video || !canvas || !ws || ws.readyState!==WebSocket.OPEN || busyRef.current || video.readyState<2) return
-        canvas.width=320;canvas.height=240
-        const ctx=canvas.getContext('2d');if(!ctx)return
-        ctx.drawImage(video,0,0,320,240)
+
+        canvas.width=384
+        canvas.height=216
+        const ctx=canvas.getContext('2d')
+        if(!ctx)return
+
+        // Keep inference orientation unmirrored. Only the user's preview is mirrored in CSS.
+        ctx.drawImage(video,0,0,384,216)
         busyRef.current=true
         canvas.toBlob(async blob=>{
-          if (!blob || ws.readyState!==WebSocket.OPEN) {busyRef.current=false;return}
+          if (!blob || ws.readyState!==WebSocket.OPEN) {
+            busyRef.current=false
+            return
+          }
           ws.send(await blob.arrayBuffer())
-          window.setTimeout(()=>{busyRef.current=false},800)
-        },'image/jpeg',0.7)
+          window.setTimeout(()=>{busyRef.current=false},700)
+        },'image/jpeg',0.72)
       }
       timerRef.current=window.setInterval(tick,100)
     } catch (error) {
+      shouldRunRef.current=false
+      setRunning(false)
       setMessage(error instanceof Error ? `Camera unavailable: ${error.message}` : 'Camera unavailable')
     }
   },[connectSocket,running])
 
   const stop=useCallback(()=>{
-    if(timerRef.current)window.clearInterval(timerRef.current);timerRef.current=null
-    streamRef.current?.getTracks().forEach(t=>t.stop());streamRef.current=null
-    wsRef.current?.close();wsRef.current=null;setRunning(false);setTracking(EMPTY_TRACKING);setMessage('Camera stopped · transcript preserved')
-    const ctx=overlayRef.current?.getContext('2d');if(ctx&&overlayRef.current)ctx.clearRect(0,0,overlayRef.current.width,overlayRef.current.height)
+    shouldRunRef.current=false
+    clearReconnect()
+    if(timerRef.current)window.clearInterval(timerRef.current)
+    timerRef.current=null
+
+    streamRef.current?.getTracks().forEach(t=>t.stop())
+    streamRef.current=null
+
+    if (wsRef.current) {
+      wsRef.current.onclose=null
+      wsRef.current.close()
+    }
+    wsRef.current=null
+    busyRef.current=false
+
+    setRunning(false)
+    setSocketState('disconnected')
+    setTracking(EMPTY_TRACKING)
+    setLandmarkLatency(null)
+    setMessage('Camera is off. Your transcript is preserved.')
+
+    const ctx=overlayRef.current?.getContext('2d')
+    if(ctx&&overlayRef.current)ctx.clearRect(0,0,overlayRef.current.width,overlayRef.current.height)
   },[])
 
   useEffect(()=>()=>stop(),[stop])
-  const reset=()=>{setTranscript([]);setPrediction(null);wsRef.current?.send(JSON.stringify({type:'reset'}))}
 
-  return {videoRef,overlayRef,captureRef,running,start,stop,reset,socketState,tracking,prediction,transcript,setTranscript,message,modelLoaded,perceptionAvailable,landmarkLatency,ttsEnabled,setTtsEnabled}
+  const reset=()=>{
+    setTranscript([])
+    setPrediction(null)
+    wsRef.current?.send(JSON.stringify({type:'reset'}))
+  }
+
+  const reconnect=async()=>{
+    await refreshHealth()
+    if (running) connectSocket()
+  }
+
+  return {
+    videoRef,overlayRef,captureRef,
+    running,start,stop,reset,reconnect,refreshHealth,
+    socketState,backendState,perceptionState,modelState,
+    tracking,prediction,transcript,setTranscript,message,
+    modelLoaded:modelState==='loaded',
+    perceptionAvailable:perceptionState==='ready',
+    landmarkLatency,ttsEnabled,setTtsEnabled,
+  }
 }
