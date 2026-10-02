@@ -1,0 +1,34 @@
+{
+  "model_version": "sanket-public-isolated-v1",
+  "backend": "temporal_template",
+  "feature_schema": "holistic-v1",
+  "sequence_length": 48,
+  "labels": [
+    "friend",
+    "hello",
+    "hospital",
+    "market",
+    "school",
+    "sit",
+    "thank_you",
+    "water"
+  ],
+  "temperature": 0.2,
+  "accept_threshold": 0.72,
+  "margin_threshold": 0.12,
+  "motion_threshold": 0.0015,
+  "tracking_threshold": 0.48,
+  "trained_at": "2026-10-02T07:29:14.720188+00:00",
+  "dataset_samples": 55,
+  "split": {
+    "mode": "stratified_sample_split_no_signer_claim",
+    "limitation": "Public aggregate clips were evaluated with a stratified sample holdout. This does not demonstrate signer-independent generalization."
+  },
+  "source": "SANKET-trained from vidit031/isl-isolated-40words",
+  "training_origin": "public_research_dataset_bootstrap",
+  "public_sources": {
+    "CISLR": 17,
+    "INCLUDE": 38
+  },
+  "license_note": "Training clips were downloaded at build time and not redistributed. This bootstrap used only INCLUDE and CISLR rows from the aggregate corpus."
+}

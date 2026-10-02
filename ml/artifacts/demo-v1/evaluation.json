@@ -1,0 +1,491 @@
+{
+  "manifest": {
+    "model_version": "sanket-public-isolated-v1",
+    "backend": "temporal_template",
+    "feature_schema": "holistic-v1",
+    "sequence_length": 48,
+    "labels": [
+      "friend",
+      "hello",
+      "hospital",
+      "market",
+      "school",
+      "sit",
+      "thank_you",
+      "water"
+    ],
+    "temperature": 0.2,
+    "accept_threshold": 0.72,
+    "margin_threshold": 0.12,
+    "motion_threshold": 0.0015,
+    "tracking_threshold": 0.48,
+    "trained_at": "2026-10-02T07:29:14.720188+00:00",
+    "dataset_samples": 55,
+    "split": {
+      "mode": "stratified_sample_split_no_signer_claim",
+      "limitation": "Public aggregate clips were evaluated with a stratified sample holdout. This does not demonstrate signer-independent generalization."
+    },
+    "source": "SANKET-trained from vidit031/isl-isolated-40words",
+    "training_origin": "public_research_dataset_bootstrap",
+    "public_sources": {
+      "CISLR": 17,
+      "INCLUDE": 38
+    },
+    "license_note": "Training clips were downloaded at build time and not redistributed. This bootstrap used only INCLUDE and CISLR rows from the aggregate corpus."
+  },
+  "class_counts": {
+    "hospital": 8,
+    "water": 3,
+    "thank_you": 8,
+    "hello": 8,
+    "friend": 8,
+    "school": 8,
+    "market": 8,
+    "sit": 4
+  },
+  "train": {
+    "samples": 39,
+    "top1_accuracy": 0.6923076923076923,
+    "macro_f1": 0.7119408369408369,
+    "threshold": 0.0,
+    "coverage": 1.0,
+    "accepted_accuracy": 0.6923076923076923,
+    "confusion_matrix": [
+      [
+        2,
+        2,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ],
+      [
+        0,
+        6,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        5,
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        5,
+        0,
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        3,
+        1,
+        2,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        0,
+        2,
+        3,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    ],
+    "per_class": [
+      {
+        "label": "friend",
+        "precision": 0.6666666666666666,
+        "recall": 0.3333333333333333,
+        "f1": 0.4444444444444444,
+        "support": 6
+      },
+      {
+        "label": "hello",
+        "precision": 0.75,
+        "recall": 1.0,
+        "f1": 0.8571428571428571,
+        "support": 6
+      },
+      {
+        "label": "hospital",
+        "precision": 1.0,
+        "recall": 0.8333333333333334,
+        "f1": 0.9090909090909091,
+        "support": 6
+      },
+      {
+        "label": "market",
+        "precision": 1.0,
+        "recall": 0.8333333333333334,
+        "f1": 0.9090909090909091,
+        "support": 6
+      },
+      {
+        "label": "school",
+        "precision": 1.0,
+        "recall": 0.5,
+        "f1": 0.6666666666666666,
+        "support": 6
+      },
+      {
+        "label": "sit",
+        "precision": 0.2222222222222222,
+        "recall": 1.0,
+        "f1": 0.3636363636363636,
+        "support": 2
+      },
+      {
+        "label": "thank_you",
+        "precision": 0.6,
+        "recall": 0.5,
+        "f1": 0.5454545454545454,
+        "support": 6
+      },
+      {
+        "label": "water",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 1
+      }
+    ]
+  },
+  "validation_selective": {
+    "samples": 8,
+    "top1_accuracy": 0.375,
+    "macro_f1": 0.0,
+    "threshold": 0.72,
+    "coverage": 0.0,
+    "accepted_accuracy": 0.0,
+    "confusion_matrix": [
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    ],
+    "per_class": [
+      {
+        "label": "friend",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      {
+        "label": "hello",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      {
+        "label": "hospital",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      {
+        "label": "market",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      {
+        "label": "school",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      {
+        "label": "sit",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      {
+        "label": "thank_you",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      {
+        "label": "water",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      }
+    ]
+  },
+  "test": {
+    "samples": 8,
+    "top1_accuracy": 0.625,
+    "macro_f1": 0.0,
+    "threshold": 0.72,
+    "coverage": 0.0,
+    "accepted_accuracy": 0.0,
+    "confusion_matrix": [
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    ],
+    "per_class": [
+      {
+        "label": "friend",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      {
+        "label": "hello",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      {
+        "label": "hospital",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      {
+        "label": "market",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      {
+        "label": "school",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      {
+        "label": "sit",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      {
+        "label": "thank_you",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      {
+        "label": "water",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      }
+    ]
+  },
+  "claims_note": "Bootstrap metrics apply only to this isolated-sign public sample holdout. They are not evidence of unrestricted ISL translation or signer-independent performance."
+}
