@@ -57,7 +57,7 @@ echo [3/10] Installing pinned MediaPipe runtime...
 python -m pip install -r apps\api\requirements-vision.txt
 if errorlevel 1 goto :vision_fail
 
-echo [4/10] Installing 50-word recognizer runtime...
+echo [4/10] Installing 50-word OpenVINO recognizer runtime...
 python -m pip install -r apps\api\requirements-bootstrap.txt
 if errorlevel 1 goto :model_fail
 
@@ -65,7 +65,7 @@ echo [5/10] Downloading and verifying 50-word model assets...
 python scripts\install_bootstrap.py
 if errorlevel 1 goto :model_fail
 
-echo [6/10] Processing a real frame through MediaPipe + loading recognition model...
+echo [6/10] Processing a real frame through MediaPipe + OpenVINO recognition...
 python scripts\smoke_live_runtime.py
 if errorlevel 1 goto :model_fail
 
@@ -100,7 +100,7 @@ echo.
 echo ==========================================
 echo   SANKET AI FULL SETUP COMPLETE
 echo ==========================================
-echo Camera tracking + 50-word interpretation + backend + web passed.
+echo Camera tracking + OpenVINO 50-word interpretation + backend + web passed.
 echo.
 
 if "%AUTO_MODE%"=="1" (

@@ -1,3 +1,5 @@
-# Runtime for the MIT-licensed 50-word bootstrap BiLSTM.
-# The upstream .keras artifact requires the newer Keras serialization stack.
-tensorflow==2.20.0
+# Inference-only runtime for the MIT-licensed 50-word BiLSTM.
+# Keras OpenVINO avoids loading TensorFlow into the same process as MediaPipe,
+# eliminating their incompatible protobuf requirements.
+keras==3.15.1
+openvino==2026.4.1

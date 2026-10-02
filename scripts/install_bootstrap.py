@@ -23,11 +23,6 @@ ASSETS = {
         "size": 9_783_895,
         "git_blob_sha1": "c903b38b34dafb8ceeb36ebb9c656d8629981e66",
     },
-    "holistic_landmarker.task": {
-        "path": "mediapipe_models/holistic_landmarker.task",
-        "size": 13_683_609,
-        "git_blob_sha1": "a3021dc1937a30cf47fecaf05d2bb735a5abc658",
-    },
 }
 
 

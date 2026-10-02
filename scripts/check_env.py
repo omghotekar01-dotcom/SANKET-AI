@@ -55,21 +55,24 @@ def main() -> int:
     ok &= mediapipe_ok
 
     tensorflow_version = _version("tensorflow")
-    tf_ok = tensorflow_version == "2.20.0"
-    print("tensorflow  ", f"{'OK' if tf_ok else 'MISSING/INCOMPATIBLE'} - {tensorflow_version}")
-    ok &= tf_ok
+    tf_absent = tensorflow_version is None
+    print("tensorflow  ", "ABSENT - OK" if tf_absent else f"UNEXPECTED - {tensorflow_version}")
+    ok &= tf_absent
 
     keras_version = _version("keras")
-    print("keras        ", keras_version or "MISSING")
-    ok &= bool(keras_version)
+    keras_ok = keras_version == "3.15.1"
+    print("keras        ", f"{'OK' if keras_ok else 'INCOMPATIBLE'} - {keras_version}")
+    ok &= keras_ok
+
+    openvino_version = _version("openvino")
+    openvino_ok = openvino_version == "2026.4.1"
+    print("openvino     ", f"{'OK' if openvino_ok else 'INCOMPATIBLE'} - {openvino_version}")
+    ok &= openvino_ok
 
     protobuf_version = _version("protobuf")
-    print("protobuf     ", protobuf_version or "MISSING")
-    ok &= bool(protobuf_version)
-
-    ml_dtypes_version = _version("ml-dtypes")
-    print("ml-dtypes    ", ml_dtypes_version or "MISSING")
-    ok &= bool(ml_dtypes_version)
+    protobuf_ok = protobuf_version == "4.25.9"
+    print("protobuf     ", f"{'OK' if protobuf_ok else 'INCOMPATIBLE'} - {protobuf_version}")
+    ok &= protobuf_ok
 
     bootstrap_model = BOOTSTRAP_DIR / "isl_model_solo.keras"
     bootstrap_manifest = BOOTSTRAP_DIR / "manifest.json"
