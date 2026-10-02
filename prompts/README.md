@@ -45,3 +45,19 @@ The prompt pack covers:
 - final acceptance criteria.
 
 Future research updates should refine these documents rather than create contradictory parallel specifications.
+
+## Deep-spec expansion
+
+The following documents extend the master prompt into failure-resistant implementation guidance:
+
+- `FAILURE_MODES_AND_RECOVERY.md` — camera, tracking, model, network, WebRTC, storage, latency and demo recovery behavior.
+- `ML_DATASET_TRAINING_PLAYBOOK.md` — vocabulary design, consented data collection, signer-aware splits, augmentation, model training, calibration, evaluation and model cards.
+- `UI_UX_ACCESSIBILITY_SPEC.md` — page-by-page product behavior, states, responsive layout, screen-reader/keyboard requirements and demo presentation mode.
+- `SECURITY_PRIVACY_THREAT_MODEL.md` — camera/mic/privacy risks, WebSocket/WebRTC abuse controls, dataset consent, logging and action safety.
+- `REALTIME_PERFORMANCE_AND_OPTIMIZATION.md` — latency budget, backpressure, adaptive quality, ONNX/browser optimization and regression gates.
+- `DEPLOYMENT_OPERATIONS_AND_OFFLINE.md` — one-command startup, offline packaging, health checks, versioning, crash recovery and post-hackathon deployment paths.
+- `HACKATHON_RISK_REGISTER.md` — concrete technical/demo/research risks with mitigations and fallbacks.
+- `IMPLEMENTATION_BACKLOG.md` — epics and checkable engineering tasks from foundation through final demo.
+
+The prompt library should keep expanding modularly as new risks, research evidence or implementation constraints are discovered. Prefer new actionable specifications and testable requirements over repetitive prose.
+
