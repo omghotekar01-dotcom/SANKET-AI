@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { WS_BASE } from '../lib/api'
+import { localizeSign, type LanguageMode } from '../lib/language'
 
-export function Call(){
+export function Call({language}:{language:LanguageMode}){
   const [room,setRoom]=useState(()=>Math.random().toString(36).slice(2,8))
   const [state,setState]=useState('Not connected')
   const [captionState,setCaptionState]=useState('Captions not started')
@@ -33,7 +34,8 @@ export function Call(){
       if(m.type==='prediction'){
         recognitionBusy.current=false
         if(m.state==='ACCEPTED'&&m.display_text){
-          setLocalCaption(m.display_text);ws.current?.send(JSON.stringify({type:'caption',payload:{text:m.display_text,confidence:m.confidence,source:'SANKET'}}))
+          const localized=localizeSign(m.display_text,language)
+          setLocalCaption(localized);ws.current?.send(JSON.stringify({type:'caption',payload:{text:localized,canonical:m.display_text,confidence:m.confidence,source:'SANKET'}}))
         }
       }
     }
@@ -66,7 +68,7 @@ export function Call(){
         else if(m.type==='offer'){await peer.setRemoteDescription(m.payload);const answer=await peer.createAnswer();await peer.setLocalDescription(answer);sock.send(JSON.stringify({type:'answer',payload:answer}))}
         else if(m.type==='answer')await peer.setRemoteDescription(m.payload)
         else if(m.type==='ice')await peer.addIceCandidate(m.payload)
-        else if(m.type==='caption')setRemoteCaption(String(m.payload?.text||''))
+        else if(m.type==='caption')setRemoteCaption(m.payload?.canonical?localizeSign(String(m.payload.canonical),language):String(m.payload?.text||''))
         else if(m.type==='peer_left')setState('Peer left')
         else if(m.type==='room_full')setState('Room already has two peers')
       }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { API_BASE, WS_BASE, apiHealth } from '../lib/api'
 import type { PredictionEvent, TrackingEvent, TrackingInfo, TranscriptTurn } from '../types'
+import { speakSign, type LanguageMode } from '../lib/language'
 
 const EMPTY_TRACKING: TrackingInfo = {left_hand:false,right_hand:false,pose:false,face:false,quality:0}
 
@@ -8,7 +9,7 @@ export type BackendState = 'checking' | 'online' | 'offline'
 export type CapabilityState = 'unknown' | 'ready' | 'unavailable'
 export type ModelState = 'unknown' | 'loaded' | 'missing'
 
-export function useRecognition(domain: string, collectorId?: string | null) {
+export function useRecognition(domain: string, collectorId?: string | null, language: LanguageMode='en') {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const overlayRef = useRef<HTMLCanvasElement | null>(null)
   const captureRef = useRef<HTMLCanvasElement | null>(null)
@@ -92,12 +93,9 @@ export function useRecognition(domain: string, collectorId?: string | null) {
   },[])
 
   const speak = useCallback((text:string) => {
-    if (!ttsEnabled || !('speechSynthesis' in window)) return
-    window.speechSynthesis.cancel()
-    const utterance=new SpeechSynthesisUtterance(text)
-    utterance.rate=0.96
-    window.speechSynthesis.speak(utterance)
-  },[ttsEnabled])
+    if (!ttsEnabled) return
+    speakSign(text,language)
+  },[ttsEnabled,language])
 
   const clearReconnect = () => {
     if (reconnectRef.current !== null) {

@@ -116,3 +116,25 @@ def test_feedback_endpoint_persists_correction_without_auto_training():
     assert r.status_code == 200
     assert r.json()['stored'] is True
     assert r.json()['retraining'] is False
+
+
+def test_language_catalog_and_marathi_canonicalization():
+    langs = client.get('/api/languages')
+    assert langs.status_code == 200
+    assert {item['id'] for item in langs.json()} == {'en','mr','both'}
+
+    from apps.api.app.services.language_service import canonicalize_text, detect_language
+    assert detect_language('डॉक्टर') == 'mr'
+    assert canonicalize_text('नमस्कार', 'auto')[2] == 'hello'
+    assert canonicalize_text('शुभ सकाळ', 'mr')[2] == 'good morning'
+    assert canonicalize_text('डॉक्टर पाणी', 'mr')[2] == 'doctor water'
+
+
+def test_marathi_reverse_isl_uses_same_canonical_sign_lookup():
+    r = client.post('/api/translate/text-to-isl', json={'text':'डॉक्टर','language':'mr'})
+    assert r.status_code == 200
+    body = r.json()
+    assert body['input_language'] == 'mr'
+    assert body['normalized_text'] == 'डॉक्टर'
+    assert body['canonical_text'] == 'doctor'
+    assert body['items'][0]['phrase'] == 'doctor'

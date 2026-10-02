@@ -5,8 +5,9 @@ import { CameraStage } from '../components/CameraStage'
 import { StatusCard } from '../components/StatusCard'
 import { Transcript } from '../components/Transcript'
 import type { TranscriptTurn } from '../types'
+import { localizeSign, speakSign, type LanguageMode } from '../lib/language'
 
-export function Interpreter() {
+export function Interpreter({language}:{language:LanguageMode}) {
   const [domain,setDomain]=useState('general')
   const [domains,setDomains]=useState<Array<{id:string;label:string}>>([])
   const [liveSigns,setLiveSigns]=useState<string[]>([])
@@ -24,7 +25,7 @@ export function Interpreter() {
   const [feedbackStatus,setFeedbackStatus]=useState('')
   const [showCorrection,setShowCorrection]=useState(false)
   const [correction,setCorrection]=useState('')
-  const r=useRecognition(domain)
+  const r=useRecognition(domain,null,language)
 
   useEffect(()=>{api<Array<{id:string;label:string}>>('/api/domains').then(setDomains).catch(()=>{})},[])
 
@@ -63,7 +64,7 @@ export function Interpreter() {
     }else if(label==='repeat'){
       const last=r.transcript.at(-1)?.text
       if(last&&'speechSynthesis'in window){
-        window.speechSynthesis.speak(new SpeechSynthesisUtterance(last))
+        speakSign(last,language)
         setActionNotice('Sign action: repeated the last accepted message')
       }
     }else if(label==='danger'){
@@ -107,7 +108,7 @@ export function Interpreter() {
       setDemoState('Replay started')
       for (const e of scenario.events) {
         await new Promise(ok=>setTimeout(ok,e.delay_ms))
-        setDemoState(`${e.state.replaceAll('_',' ')}${e.display_text?` · ${e.display_text}`:''}`)
+        setDemoState(`${e.state.replaceAll('_',' ')}${e.display_text?` · ${localizeSign(e.display_text,language)}`:''}`)
         if(e.state==='ACCEPTED') r.setTranscript(prev=>[...prev,{
           id:crypto.randomUUID(),source:'DEMO',text:e.display_text,confidence:e.confidence,at:Date.now(),
         } as TranscriptTurn])
@@ -120,9 +121,9 @@ export function Interpreter() {
   }
 
   const caption=useMemo(()=>{
-    if(r.prediction?.state==='ACCEPTED'&&r.prediction.display_text)return r.prediction.display_text
+    if(r.prediction?.state==='ACCEPTED'&&r.prediction.display_text)return localizeSign(r.prediction.display_text,language)
     return ''
-  },[r.prediction])
+  },[r.prediction,language])
 
   const stageStatus=useMemo(()=>{
     if(r.backendState==='offline')return 'Recognition service offline'
@@ -188,13 +189,13 @@ export function Interpreter() {
       </section>
 
       <aside className="studio-rail">
-        <Transcript turns={r.transcript} onClear={r.reset}/>
+        <Transcript turns={r.transcript} onClear={r.reset} language={language}/>
 
         <section className="feedback-card">
           <div><span className="section-label">Human correction</span><strong>Was the last accepted sign right?</strong></div>
           {latestISL
             ?<>
-              <p>Last accepted: <b>{latestISL.text}</b>. Feedback is stored as metadata only and never changes model weights automatically.</p>
+              <p>Last accepted: <b>{localizeSign(latestISL.text,language)}</b>. Feedback is stored as metadata only and never changes model weights automatically.</p>
               <div className="control-row compact-controls">
                 <button className="secondary" onClick={()=>void submitFeedback(true)}>Correct</button>
                 <button className="secondary" onClick={()=>{setShowCorrection(v=>!v);setFeedbackStatus('')}}>Fix label</button>
@@ -239,7 +240,7 @@ export function Interpreter() {
             {coreVocabulary.map(item=>{
               const live=coreSupported.includes(item.id)
               return <span key={item.id} className={live?'core-sign live':'core-sign missing'} title={live?'Recognizable by the active model':'Still requires verified training'}>
-                <i/>{item.display}
+                <i/>{localizeSign(item.id,language)}
               </span>
             })}
           </div>
@@ -269,12 +270,12 @@ export function Interpreter() {
                 setTestDetected('')
                 setTestConfidence(null)
               }}>
-                {liveSigns.map(sign=><option key={sign} value={sign}>{sign}</option>)}
+                {liveSigns.map(sign=><option key={sign} value={sign}>{localizeSign(sign,language)}</option>)}
               </select>
             </label>
             <div className="test-target">
               <span>Perform</span>
-              <strong>{testTarget || '—'}</strong>
+              <strong>{testTarget?localizeSign(testTarget,language):'—'}</strong>
             </div>
             <button className="secondary full-width-test" disabled={!testTarget||r.modelState!=='loaded'} onClick={()=>{
               setTestState('waiting')
@@ -283,8 +284,8 @@ export function Interpreter() {
               if(!r.running)void r.start()
             }}>{r.running?'Reset test':'Start camera & test'}</button>
             {testState==='waiting'&&<div className="test-result waiting"><i/>Waiting for an accepted sign…</div>}
-            {testState==='passed'&&<div className="test-result passed"><i/>PASS · {testDetected}{testConfidence!==null?` · ${Math.round(testConfidence*100)}%`:''}</div>}
-            {testState==='different'&&<div className="test-result different"><i/>Detected {testDetected}{testConfidence!==null?` · ${Math.round(testConfidence*100)}%`:''}. Try {testTarget} again.</div>}
+            {testState==='passed'&&<div className="test-result passed"><i/>PASS · {localizeSign(testDetected,language)}{testConfidence!==null?` · ${Math.round(testConfidence*100)}%`:''}</div>}
+            {testState==='different'&&<div className="test-result different"><i/>Detected {localizeSign(testDetected,language)}{testConfidence!==null?` · ${Math.round(testConfidence*100)}%`:''}. Try {localizeSign(testTarget,language)} again.</div>}
             <p className="test-help">This checks the active isolated-sign recognizer only. Hold a neutral pose briefly before and after the sign and keep your upper body visible.</p>
           </div>
         </section>
@@ -293,7 +294,7 @@ export function Interpreter() {
           <summary><span><span className="section-label">Active vocabulary</span><strong>{liveSigns.length} supported signs</strong></span><span className="summary-caret">⌄</span></summary>
           <div className="vocabulary-list">
             {liveSigns.length
-              ?liveSigns.map(sign=><span key={sign}>{sign}</span>)
+              ?liveSigns.map(sign=><span key={sign}>{localizeSign(sign,language)}</span>)
               :<p>No live vocabulary reported.</p>}
           </div>
         </details>

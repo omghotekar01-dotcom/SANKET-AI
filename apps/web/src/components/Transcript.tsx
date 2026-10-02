@@ -1,6 +1,7 @@
 import type { TranscriptTurn } from '../types'
+import { localizeSign, type LanguageMode } from '../lib/language'
 
-export function Transcript({turns,onClear}:{turns:TranscriptTurn[];onClear:()=>void}) {
+export function Transcript({turns,onClear,language}:{turns:TranscriptTurn[];onClear:()=>void;language:LanguageMode}) {
   return <section className="transcript-panel">
     <div className="panel-head">
       <div><span className="section-label">Conversation</span><h2>Live transcript</h2></div>
@@ -14,7 +15,7 @@ export function Transcript({turns,onClear}:{turns:TranscriptTurn[];onClear:()=>v
       </div>}
       {turns.map(t=><article className="turn" key={t.id}>
         <div className="turn-meta"><span className="turn-source">{t.source}</span><time>{new Date(t.at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</time></div>
-        <strong>{t.text}</strong>
+        <strong>{t.source==='ISL'||t.source==='DEMO'?localizeSign(t.text,language):t.text}</strong>
         {t.confidence!==undefined&&<small>{Math.round(t.confidence*100)}% confidence</small>}
       </article>)}
     </div>

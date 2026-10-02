@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
@@ -44,6 +44,7 @@ class PredictionEvent(BaseModel):
 
 class TextToISLRequest(BaseModel):
     text: str = Field(min_length=1, max_length=500)
+    language: Literal["auto", "en", "mr"] = "auto"
 
 
 class ISLClipItem(BaseModel):
@@ -56,6 +57,8 @@ class ISLClipItem(BaseModel):
 
 class TextToISLResponse(BaseModel):
     normalized_text: str
+    canonical_text: str
+    input_language: str
     mode: str
     items: list[ISLClipItem]
     message: str | None = None

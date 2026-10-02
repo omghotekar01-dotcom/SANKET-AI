@@ -15,6 +15,7 @@ from ..services.clip_service import ClipService
 from ..services.collector_service import CollectorService
 from ..services.context_service import DOMAINS, domain_descriptors
 from ..services.replay_service import SCENARIOS
+from ..services.language_service import supported_languages
 from ..services.vocabulary_service import CORE_VOCABULARY, core_coverage
 
 router = APIRouter(prefix="/api")
@@ -61,6 +62,7 @@ def config():
         "recognition_fps": settings.recognition_fps,
         "sequence_length": settings.sequence_length,
         "privacy": "Raw camera video is not stored by default.",
+        "supported_languages": supported_languages(),
     }
 
 
@@ -107,9 +109,14 @@ def signs():
     }
 
 
+@router.get("/languages")
+def languages():
+    return supported_languages()
+
+
 @router.post("/translate/text-to-isl")
 def text_to_isl(body: TextToISLRequest):
-    return clip_service.translate(body.text)
+    return clip_service.translate(body.text, body.language)
 
 
 @router.post("/feedback")

@@ -1,7 +1,7 @@
 # SANKET AI
 
 **Peaky Coders · Hacktopia 2026**  
-Real-Time Multimodal Indian Sign Language Communication Bridge
+Real-Time Multimodal Indian Sign Language Communication Bridge · English + Marathi communication output
 
 SANKET AI is designed around **hands + facial/non-manual cues + upper-body pose + motion across time + context + explicit uncertainty**. It does not pretend that an isolated hand-pose classifier is continuous ISL translation.
 
@@ -60,7 +60,10 @@ Do not upgrade those individually without migrating the perception layer and ret
 - Calibration + selective acceptance + ambiguity/motion/tracking gates.
 - `ACCEPTED`, `NEED_REPEAT`, `NO_SIGN`, `TRACKING_LOST` behavior.
 - Context domains that only rerank recognizer evidence.
-- ISL → text → browser TTS.
+- ISL → English / Marathi / bilingual text → browser TTS using en-IN / mr-IN voice hints.
+- Persistent English / मराठी / English + मराठी communication-language selector.
+- Marathi speech input (mr-IN when supported by the browser) and Unicode-safe Marathi text input.
+- Marathi sign-word aliases canonicalize into the same verified ISL reverse-translation path as English.
 - Text → verified ISL phrase clip registry with honest fallback.
 - Local verified-clip upload workflow.
 - Emergency communication, high contrast, larger text, reduced motion, ARIA live transcript and haptics capability detection.
@@ -126,7 +129,8 @@ The backend trains, evaluates, saves and reloads the local model automatically.
 
 - The recognizer is **finite-vocabulary temporal recognition**, not unrestricted open-vocabulary continuous ISL sentence translation.
 - Context cannot invent meaning unsupported by visual evidence.
-- Browser speech recognition is optional; typed text remains the fallback.
+- Browser speech recognition is optional; typed text remains the fallback. English uses en-IN and Marathi uses mr-IN when the browser exposes those speech services.
+- Marathi support is a bilingual communication layer over the finite sign vocabulary; it does not change ISL grammar or claim unrestricted Marathi↔ISL sentence translation.
 - Internet-wide WebRTC generally needs a tested TURN service; same-network/two-tab demo is the supported current path.
 - Emergency mode communicates urgent needs but does not dispatch emergency services.
 

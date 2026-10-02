@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { languageLabel, localizeSign, speakSign, type LanguageMode } from '../lib/language'
 
 const ITEMS=['HELP','DOCTOR','POLICE','FIRE','ACCIDENT','DANGER','WATER','PAIN']
 
@@ -20,7 +21,7 @@ function classifySound(time:Uint8Array, freq:Uint8Array):{kind:SoundClass;score:
   return {kind:'LOUD_SOUND',score:Math.min(1,rms/0.25)}
 }
 
-export function Emergency(){
+export function Emergency({language}:{language:LanguageMode}){
   const [monitoring,setMonitoring]=useState(false)
   const [soundState,setSoundState]=useState<SoundClass>('QUIET')
   const [soundScore,setSoundScore]=useState(0)
@@ -34,7 +35,7 @@ export function Emergency(){
   const lastVibrate=useRef(0)
 
   const activate=(text:string)=>{
-    if('speechSynthesis'in window)window.speechSynthesis.speak(new SpeechSynthesisUtterance(text))
+    speakSign(text,language)
     navigator.vibrate?.([120,70,120])
   }
 
@@ -107,8 +108,8 @@ export function Emergency(){
   }
 
   return <div className="content-page emergency-page">
-    <div className="page-title"><span className="eyebrow">ASSISTIVE COMMUNICATION</span><h1>Emergency communication</h1><p>This interface helps communicate urgent needs. It does not dispatch or replace emergency services.</p></div>
-    <div className="emergency-grid">{ITEMS.map(i=><button key={i} onClick={()=>activate(i)}><span>{i==='HELP'?'!':'●'}</span>{i}</button>)}</div>
+    <div className="page-title"><span className="eyebrow">ASSISTIVE COMMUNICATION · {languageLabel(language)}</span><h1>{language==='mr'?'आपत्कालीन संवाद':language==='both'?'Emergency communication · आपत्कालीन संवाद':'Emergency communication'}</h1><p>This interface communicates urgent needs in English and Marathi. It does not dispatch or replace emergency services.</p></div>
+    <div className="emergency-grid">{ITEMS.map(i=><button key={i} onClick={()=>activate(i)}><span>{i==='HELP'?'!':'●'}</span>{localizeSign(i,language)}</button>)}</div>
 
     <section className="panel wide sound-alert-card" aria-live="polite">
       <div className="panel-head"><div><span className="section-label">Environmental sound awareness</span><h2>Local alarm-like sound alert</h2></div><span className={monitoring?'mini-status ready':'mini-status'}>{monitoring?'Listening locally':'Off'}</span></div>

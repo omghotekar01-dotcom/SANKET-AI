@@ -315,3 +315,15 @@ html[data-reduce-motion="1"] *,html[data-reduce-motion="1"] *::before,html[data-
 .sound-meter-row .sound-alert-live{border-color:#70414a;background:#211216}
 .sound-meter-row .sound-alert-live strong{color:#ffb6bf}
 @media(max-width:700px){.sound-meter-row{grid-template-columns:1fr}.feedback-fix-row{grid-template-columns:1fr}}
+
+.topbar-actions{display:flex;align-items:center;gap:10px}
+.language-control{display:flex;align-items:center;gap:7px;margin:0;color:#8c97a3;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.07em}
+.language-control select{width:auto;min-width:126px;padding:6px 28px 6px 9px;border-radius:7px;font-size:10px}
+.language-active{display:none}
+.language-result-badge{border:1px solid #35445c;background:#131b28;color:#b7caf2;border-radius:999px;padding:5px 8px;font-size:9px;font-weight:800}
+.canonical-note{font-size:10px;color:#8e9aaa;border-left:2px solid #4c6da8;padding-left:9px}
+@media(max-width:700px){
+  .topbar-actions{margin-left:auto}
+  .language-control span,.language-active{display:none}
+  .language-control select{min-width:104px;max-width:128px}
+}
