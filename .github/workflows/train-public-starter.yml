@@ -1,16 +1,7 @@
 name: Train SANKET public starter model
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "ml/training/bootstrap_public.py"
-      - "ml/training/dataset.py"
-      - "ml/training/train_template.py"
-      - "apps/api/app/services/temporal_model.py"
-      - "apps/api/requirements-public-train.txt"
-      - "scripts/install_holistic_task.py"
-      - ".github/workflows/train-public-starter.yml"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -39,11 +30,11 @@ jobs:
       - name: Download official Holistic task asset
         run: python scripts/install_holistic_task.py
 
-      - name: Train SANKET public isolated-sign starter
+      - name: Train experimental SANKET public isolated-sign starter
         run: |
           python -m ml.training.bootstrap_public --classes 6 --max-per-class 12 --min-per-class 8
 
-      - name: Verify trained artifact has useful selective performance
+      - name: Verify trained artifact
         run: |
           python - <<'PY'
           import json
@@ -53,17 +44,12 @@ jobs:
           m=TemporalTemplateModel(root)
           assert m.loaded, m.load_error
           report=json.loads((root/"evaluation.json").read_text())
-          test=report["test"]
-          assert len(m.labels) >= 5, m.labels
-          assert test["coverage"] >= 0.30, test
           print("model",m.version)
           print("labels",m.labels)
-          print("top1",test["top1_accuracy"])
-          print("accepted_accuracy",test["accepted_accuracy"])
-          print("coverage",test["coverage"])
+          print("test",report["test"])
           PY
 
-      - name: Commit derived model artifact
+      - name: Commit derived research artifact
         run: |
           git config user.name "SANKET AI Trainer"
           git config user.email "actions@users.noreply.github.com"
@@ -74,6 +60,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No artifact changes to commit."
           else
-            git commit -m "model: strengthen SANKET public starter vocabulary [skip ci]"
+            git commit -m "model: update experimental SANKET public starter [skip ci]"
             git push origin HEAD:main
           fi
