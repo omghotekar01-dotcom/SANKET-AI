@@ -14,16 +14,25 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - name: Install backend and pinned vision runtime
+
+      - name: Install backend, vision and bootstrap runtime
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r apps/api/requirements-dev.txt
           python -m pip install -r apps/api/requirements-vision.txt
-      - name: Verify MediaPipe Holistic compatibility
+          python -m pip install -r apps/api/requirements-bootstrap.txt
+
+      - name: Download and verify pinned bootstrap assets
+        run: python scripts/install_bootstrap.py
+
+      - name: Verify Holistic Tasks and load 50-class model
         run: |
-          python -c "import mediapipe as mp, numpy as np, cv2; from mediapipe.python.solutions import holistic; assert mp.__version__=='0.10.21'; assert np.__version__=='1.26.4'; assert cv2.__version__.startswith('4.11.'); assert hasattr(holistic,'Holistic')"
+          python -c "import mediapipe as mp; from mediapipe.tasks.python import vision as mv; assert mp.__version__=='0.10.21'; assert hasattr(mv,'HolisticLandmarker')"
+          python -c "from pathlib import Path; import numpy as np; from apps.api.app.services.bootstrap_model import BootstrapKerasModel; m=BootstrapKerasModel(Path('ml/artifacts/bootstrap-50')); assert m.loaded, m.load_error; p=m.predict(np.zeros((30,378),dtype=np.float32)); assert len(p.labels)==50 and p.probabilities.shape==(50,); print(m.version,p.top_label,float(p.probabilities.max()))"
+
       - name: Compile Python
         run: python -m compileall -q apps ml scripts
+
       - name: Run backend and ML tests
         run: python -m pytest apps/api/tests -q
 

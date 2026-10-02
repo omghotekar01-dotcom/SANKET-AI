@@ -33,7 +33,7 @@ if errorlevel 1 (
   goto :fail
 )
 
-echo [1/7] Rebuilding the Python environment with compatible vision packages...
+echo [1/9] Rebuilding clean Python environment...
 if exist ".venv" (
   rmdir /s /q ".venv"
   if exist ".venv" (
@@ -47,20 +47,31 @@ if exist ".venv" (
 if errorlevel 1 goto :fail
 call ".venv\Scripts\activate.bat"
 
-echo [2/7] Installing backend dependencies...
+echo [2/9] Installing backend dependencies...
 python -m pip install --upgrade pip setuptools wheel
 if errorlevel 1 goto :fail
 python -m pip install -r apps\api\requirements-dev.txt
 if errorlevel 1 goto :fail
 
-echo [3/7] Installing pinned MediaPipe Holistic runtime...
+echo [3/9] Installing pinned MediaPipe runtime...
 python -m pip install -r apps\api\requirements-vision.txt
 if errorlevel 1 goto :vision_fail
 
-python -c "import mediapipe as mp, numpy as np, cv2; from mediapipe.python.solutions import holistic; assert mp.__version__=='0.10.21'; assert np.__version__=='1.26.4'; assert cv2.__version__.startswith('4.11.'); assert hasattr(holistic,'Holistic'); print('Vision stack: OK - MediaPipe',mp.__version__,'NumPy',np.__version__,'OpenCV',cv2.__version__)"
+echo [4/9] Installing pretrained-model runtime...
+python -m pip install -r apps\api\requirements-bootstrap.txt
+if errorlevel 1 goto :bootstrap_fail
+
+echo [5/9] Downloading and verifying 50-word ISL bootstrap model...
+python scripts\install_bootstrap.py
+if errorlevel 1 goto :bootstrap_fail
+
+python -c "import mediapipe as mp, numpy as np, cv2; from mediapipe.tasks.python import vision as mv; assert mp.__version__=='0.10.21'; assert np.__version__=='1.26.4'; assert cv2.__version__.startswith('4.11.'); assert hasattr(mv,'HolisticLandmarker'); print('Vision runtime: OK')"
 if errorlevel 1 goto :vision_fail
 
-echo [4/7] Installing web dependencies...
+python -c "from pathlib import Path; from apps.api.app.services.bootstrap_model import BootstrapKerasModel; m=BootstrapKerasModel(Path('ml/artifacts/bootstrap-50')); assert m.loaded, m.load_error; assert len(m.labels)==50; print('Bootstrap recognizer: OK -',m.version,'-',len(m.labels),'classes')"
+if errorlevel 1 goto :bootstrap_fail
+
+echo [6/9] Installing web dependencies...
 pushd apps\web
 call npm install
 if errorlevel 1 (
@@ -68,7 +79,7 @@ if errorlevel 1 (
   goto :fail
 )
 
-echo [5/7] Building the production web app...
+echo [7/9] Building production web app...
 call npm run build
 if errorlevel 1 (
   popd
@@ -76,11 +87,11 @@ if errorlevel 1 (
 )
 popd
 
-echo [6/7] Running backend and ML tests...
+echo [8/9] Running backend and ML tests...
 python -m pytest apps\api\tests -q
 if errorlevel 1 goto :fail
 
-echo [7/7] Final runtime verification...
+echo [9/9] Final runtime verification...
 python scripts\check_env.py
 if errorlevel 1 goto :fail
 
@@ -88,7 +99,8 @@ echo.
 echo ==========================================
 echo   SANKET AI SETUP COMPLETE
 echo ==========================================
-echo Vision runtime, backend tests and web build all passed.
+echo Camera tracking + 50-word bootstrap recognition + backend + web build passed.
+echo A locally trained SANKET model will automatically override the bootstrap later.
 echo.
 
 if "%AUTO_MODE%"=="1" (
@@ -106,9 +118,15 @@ exit /b %EXIT_CODE%
 
 :vision_fail
 echo.
-echo [ERROR] The compatible MediaPipe Holistic runtime could not be created.
+echo [ERROR] MediaPipe Holistic Tasks runtime could not be created.
 echo Expected: MediaPipe 0.10.21 + NumPy 1.26.4 + OpenCV 4.11.
-echo The setup intentionally stopped instead of launching a half-working app.
+goto :fail
+
+:bootstrap_fail
+echo.
+echo [ERROR] The verified 50-word bootstrap recognizer could not be installed or loaded.
+echo Check your internet connection and retry START_SANKET.bat.
+echo The launcher stopped instead of using unverified/fake weights.
 goto :fail
 
 :fail
