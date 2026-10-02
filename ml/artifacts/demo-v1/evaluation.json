@@ -10,17 +10,15 @@
       "hospital",
       "market",
       "school",
-      "sit",
-      "thank_you",
-      "water"
+      "thank_you"
     ],
-    "temperature": 0.08,
-    "accept_threshold": 0.14,
-    "margin_threshold": 0.0978,
+    "temperature": 0.1,
+    "accept_threshold": 0.17666666666666667,
+    "margin_threshold": 0.00407,
     "motion_threshold": 0.0015,
     "tracking_threshold": 0.48,
-    "trained_at": "2026-10-02T07:34:11.861531+00:00",
-    "dataset_samples": 55,
+    "trained_at": "2026-10-02T07:38:50.280333+00:00",
+    "dataset_samples": 72,
     "split": {
       "mode": "stratified_sample_split_no_signer_claim",
       "limitation": "Public aggregate clips were evaluated with a stratified sample holdout. This does not demonstrate signer-independent generalization."
@@ -28,356 +26,149 @@
     "source": "SANKET-trained from vidit031/isl-isolated-40words",
     "training_origin": "public_research_dataset_bootstrap",
     "public_sources": {
-      "CISLR": 17,
-      "INCLUDE": 38
+      "CISLR": 10,
+      "INCLUDE": 62
     },
     "license_note": "Training clips were downloaded at build time and not redistributed. This bootstrap used only INCLUDE and CISLR rows from the aggregate corpus."
   },
   "class_counts": {
-    "hospital": 8,
-    "water": 3,
-    "thank_you": 8,
-    "hello": 8,
-    "friend": 8,
-    "school": 8,
-    "market": 8,
-    "sit": 4
+    "hospital": 12,
+    "thank_you": 12,
+    "hello": 12,
+    "friend": 12,
+    "school": 12,
+    "market": 12
   },
   "train": {
-    "samples": 39,
-    "top1_accuracy": 0.6923076923076923,
-    "macro_f1": 0.636659867909868,
+    "samples": 60,
+    "top1_accuracy": 0.7,
+    "macro_f1": 0.696146337322808,
     "threshold": 0.0,
     "margin_threshold": 0.0,
     "coverage": 1.0,
-    "accepted_accuracy": 0.6923076923076923,
+    "accepted_accuracy": 0.7,
     "confidence_summary": {
-      "min": 0.2349693328142166,
-      "median": 0.43389928340911865,
-      "max": 0.9999157190322876
+      "min": 0.2092161327600479,
+      "median": 0.34310245513916016,
+      "max": 0.9595166444778442
     },
     "margin_summary": {
-      "min": 0.005501806735992432,
-      "median": 0.19350311160087585,
-      "max": 0.9998953342437744
+      "min": 0.0003865063190460205,
+      "median": 0.1293085217475891,
+      "max": 0.9330742955207825
     },
     "confusion_matrix": [
       [
+        5,
         2,
-        1,
         0,
         0,
         0,
-        2,
-        1,
+        3
+      ],
+      [
+        0,
+        10,
+        0,
+        0,
+        0,
         0
       ],
       [
         0,
+        0,
+        9,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        8,
+        1,
+        1
+      ],
+      [
+        2,
+        0,
+        0,
+        1,
         6,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        5,
-        0,
-        0,
-        0,
-        0,
         1
       ],
       [
-        0,
-        0,
-        0,
-        5,
+        3,
         0,
         1,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        5,
-        0,
-        0,
-        1
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
         2,
         0,
-        0
-      ],
-      [
-        1,
-        0,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1
+        4
       ]
     ],
     "per_class": [
       {
         "label": "friend",
-        "precision": 0.6666666666666666,
-        "recall": 0.3333333333333333,
-        "f1": 0.4444444444444444,
-        "support": 6
+        "precision": 0.5,
+        "recall": 0.5,
+        "f1": 0.5,
+        "support": 10
       },
       {
         "label": "hello",
-        "precision": 0.8571428571428571,
+        "precision": 0.8333333333333334,
         "recall": 1.0,
-        "f1": 0.923076923076923,
-        "support": 6
+        "f1": 0.9090909090909091,
+        "support": 10
       },
       {
         "label": "hospital",
-        "precision": 1.0,
-        "recall": 0.8333333333333334,
-        "f1": 0.9090909090909091,
-        "support": 6
+        "precision": 0.9,
+        "recall": 0.9,
+        "f1": 0.9,
+        "support": 10
       },
       {
         "label": "market",
-        "precision": 0.8333333333333334,
-        "recall": 0.8333333333333334,
-        "f1": 0.8333333333333334,
-        "support": 6
+        "precision": 0.7272727272727273,
+        "recall": 0.8,
+        "f1": 0.761904761904762,
+        "support": 10
       },
       {
         "label": "school",
-        "precision": 0.8333333333333334,
-        "recall": 0.8333333333333334,
-        "f1": 0.8333333333333334,
-        "support": 6
-      },
-      {
-        "label": "sit",
-        "precision": 0.3333333333333333,
-        "recall": 1.0,
-        "f1": 0.5,
-        "support": 2
+        "precision": 0.8571428571428571,
+        "recall": 0.6,
+        "f1": 0.7058823529411764,
+        "support": 10
       },
       {
         "label": "thank_you",
-        "precision": 0.5,
-        "recall": 0.16666666666666666,
-        "f1": 0.25,
-        "support": 6
-      },
-      {
-        "label": "water",
-        "precision": 0.25,
-        "recall": 1.0,
-        "f1": 0.4,
-        "support": 1
+        "precision": 0.4,
+        "recall": 0.4,
+        "f1": 0.4000000000000001,
+        "support": 10
       }
     ]
   },
   "validation_selective": {
-    "samples": 8,
-    "top1_accuracy": 0.5,
-    "macro_f1": 0.375,
-    "threshold": 0.14,
-    "margin_threshold": 0.0978,
-    "coverage": 0.5,
-    "accepted_accuracy": 0.75,
+    "samples": 6,
+    "top1_accuracy": 0.3333333333333333,
+    "macro_f1": 0.27777777777777773,
+    "threshold": 0.17666666666666667,
+    "margin_threshold": 0.00407,
+    "coverage": 0.8333333333333334,
+    "accepted_accuracy": 0.4,
     "confidence_summary": {
-      "min": 0.31611087918281555,
-      "median": 0.3438078463077545,
-      "max": 0.7282708883285522
+      "min": 0.2346706986427307,
+      "median": 0.32689738273620605,
+      "max": 0.6084887981414795
     },
     "margin_summary": {
-      "min": 0.052694112062454224,
-      "median": 0.08175365626811981,
-      "max": 0.6158537268638611
-    },
-    "confusion_matrix": [
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1
-      ]
-    ],
-    "per_class": [
-      {
-        "label": "friend",
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0,
-        "support": 1
-      },
-      {
-        "label": "hello",
-        "precision": 1.0,
-        "recall": 1.0,
-        "f1": 1.0,
-        "support": 1
-      },
-      {
-        "label": "hospital",
-        "precision": 1.0,
-        "recall": 1.0,
-        "f1": 1.0,
-        "support": 1
-      },
-      {
-        "label": "market",
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0,
-        "support": 1
-      },
-      {
-        "label": "school",
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0,
-        "support": 1
-      },
-      {
-        "label": "sit",
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0,
-        "support": 1
-      },
-      {
-        "label": "thank_you",
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0,
-        "support": 1
-      },
-      {
-        "label": "water",
-        "precision": 1.0,
-        "recall": 1.0,
-        "f1": 1.0,
-        "support": 1
-      }
-    ]
-  },
-  "test": {
-    "samples": 8,
-    "top1_accuracy": 0.5,
-    "macro_f1": 0.3333333333333333,
-    "threshold": 0.14,
-    "margin_threshold": 0.0978,
-    "coverage": 0.75,
-    "accepted_accuracy": 0.5,
-    "confidence_summary": {
-      "min": 0.3198884129524231,
-      "median": 0.37236011028289795,
-      "max": 0.6269567608833313
-    },
-    "margin_summary": {
-      "min": 0.004736363887786865,
-      "median": 0.16294407844543457,
-      "max": 0.4721241295337677
+      "min": 0.000559687614440918,
+      "median": 0.0951998382806778,
+      "max": 0.4966198801994324
     },
     "confusion_matrix": [
       [
@@ -386,8 +177,6 @@
         0,
         0,
         0,
-        0,
-        0,
         0
       ],
       [
@@ -396,13 +185,17 @@
         0,
         0,
         0,
-        0,
-        0,
         0
       ],
       [
         0,
         0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
         1,
         0,
         0,
@@ -416,8 +209,6 @@
         0,
         0,
         1,
-        0,
-        0,
         0
       ],
       [
@@ -426,39 +217,7 @@
         0,
         1,
         0,
-        0,
-        0,
         0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1
       ]
     ],
     "per_class": [
@@ -478,9 +237,122 @@
       },
       {
         "label": "hospital",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      {
+        "label": "market",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      {
+        "label": "school",
         "precision": 1.0,
         "recall": 1.0,
         "f1": 1.0,
+        "support": 1
+      },
+      {
+        "label": "thank_you",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      }
+    ]
+  },
+  "test": {
+    "samples": 6,
+    "top1_accuracy": 0.5,
+    "macro_f1": 0.4444444444444444,
+    "threshold": 0.17666666666666667,
+    "margin_threshold": 0.00407,
+    "coverage": 1.0,
+    "accepted_accuracy": 0.5,
+    "confidence_summary": {
+      "min": 0.29429343342781067,
+      "median": 0.3490051031112671,
+      "max": 0.4460532069206238
+    },
+    "margin_summary": {
+      "min": 0.07081359624862671,
+      "median": 0.15744245052337646,
+      "max": 0.28984546661376953
+    },
+    "confusion_matrix": [
+      [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    ],
+    "per_class": [
+      {
+        "label": "friend",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 1
+      },
+      {
+        "label": "hello",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 1
+      },
+      {
+        "label": "hospital",
+        "precision": 0.5,
+        "recall": 1.0,
+        "f1": 0.6666666666666666,
         "support": 1
       },
       {
@@ -498,24 +370,10 @@
         "support": 1
       },
       {
-        "label": "sit",
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0,
-        "support": 1
-      },
-      {
         "label": "thank_you",
         "precision": 0.0,
         "recall": 0.0,
         "f1": 0.0,
-        "support": 1
-      },
-      {
-        "label": "water",
-        "precision": 1.0,
-        "recall": 1.0,
-        "f1": 1.0,
         "support": 1
       }
     ]

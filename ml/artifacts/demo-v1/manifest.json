@@ -9,17 +9,15 @@
     "hospital",
     "market",
     "school",
-    "sit",
-    "thank_you",
-    "water"
+    "thank_you"
   ],
-  "temperature": 0.08,
-  "accept_threshold": 0.14,
-  "margin_threshold": 0.0978,
+  "temperature": 0.1,
+  "accept_threshold": 0.17666666666666667,
+  "margin_threshold": 0.00407,
   "motion_threshold": 0.0015,
   "tracking_threshold": 0.48,
-  "trained_at": "2026-10-02T07:34:11.861531+00:00",
-  "dataset_samples": 55,
+  "trained_at": "2026-10-02T07:38:50.280333+00:00",
+  "dataset_samples": 72,
   "split": {
     "mode": "stratified_sample_split_no_signer_claim",
     "limitation": "Public aggregate clips were evaluated with a stratified sample holdout. This does not demonstrate signer-independent generalization."
@@ -27,8 +25,8 @@
   "source": "SANKET-trained from vidit031/isl-isolated-40words",
   "training_origin": "public_research_dataset_bootstrap",
   "public_sources": {
-    "CISLR": 17,
-    "INCLUDE": 38
+    "CISLR": 10,
+    "INCLUDE": 62
   },
   "license_note": "Training clips were downloaded at build time and not redistributed. This bootstrap used only INCLUDE and CISLR rows from the aggregate corpus."
 }
