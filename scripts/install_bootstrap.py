@@ -10,7 +10,7 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "ml" / "artifacts" / "bootstrap-50"
-UPSTREAM_COMMIT = "d77b58e663fa5a30aef475002415b96b7d468f96"
+UPSTREAM_COMMIT = "99ed8ffc47ccf3106d498e704f5c1b7e547758d7"
 BASE = (
     "https://raw.githubusercontent.com/"
     "Kartik200428/Real-time-Indic-Sign-language-to-speech-translator/"

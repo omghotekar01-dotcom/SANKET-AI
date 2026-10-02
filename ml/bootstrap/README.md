@@ -5,7 +5,7 @@ SANKET AI can use an external pretrained model as a **bootstrap fallback** befor
 Source project:
 - Kartik Singh, `Real-time-Indic-Sign-language-to-speech-translator`
 - Upstream repository: `Kartik200428/Real-time-Indic-Sign-language-to-speech-translator`
-- Pinned upstream commit: `d77b58e663fa5a30aef475002415b96b7d468f96`
+- Pinned upstream commit: `99ed8ffc47ccf3106d498e704f5c1b7e547758d7`
 - License: MIT
 
 The model is **not claimed as a SANKET-trained model**. Its original project states that it was trained on the upstream team's personally recorded ISL sequences. SANKET displays it as a bootstrap model and allows a locally trained SANKET model to replace it automatically.
