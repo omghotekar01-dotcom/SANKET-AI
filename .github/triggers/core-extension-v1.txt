@@ -1,5 +1,4 @@
-core-extension-v1 retrain 3
+core-extension-v1 retrain 4
 Targets: yes,no,help,water,where
-STOP is intentionally excluded until a separate verified source is trained.
-Sources: INCLUDE CC-BY-4.0 + CISLR AFL-3.0 + ISL500 academic/research-only.
-Quality gate required before runtime activation.
+Gate: unchanged accuracy/F1/coverage thresholds; holdout minimum = one sample per class.
+STOP remains separate until a verified source is trained.

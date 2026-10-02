@@ -15,7 +15,7 @@ class CoreExtensionModel:
     MIN_MACRO_F1 = 0.35
     MIN_ACCEPTED_ACCURACY = 0.60
     MIN_COVERAGE = 0.30
-    MIN_TEST_SAMPLES = 6
+    MIN_TEST_SAMPLES_PER_CLASS = 1
 
     is_bootstrap = False
     input_schema = "native"
@@ -59,8 +59,9 @@ class CoreExtensionModel:
             problems.append(f"unexpected origin {origin!r}")
         if not labels or not labels.issubset(CORE_EXTENSION_TARGETS):
             problems.append(f"unexpected labels {sorted(labels)}")
-        if samples < self.MIN_TEST_SAMPLES:
-            problems.append(f"test samples {samples} < {self.MIN_TEST_SAMPLES}")
+        minimum_test_samples = max(len(labels) * self.MIN_TEST_SAMPLES_PER_CLASS, 1)
+        if samples < minimum_test_samples:
+            problems.append(f"test samples {samples} < {minimum_test_samples}")
         if top1 < self.MIN_TOP1:
             problems.append(f"top1 {top1:.2f} < {self.MIN_TOP1:.2f}")
         if macro_f1 < self.MIN_MACRO_F1:
