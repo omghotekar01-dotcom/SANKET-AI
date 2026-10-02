@@ -4,7 +4,7 @@ import { useRecognition } from '../hooks/useRecognition'
 import { CameraStage } from '../components/CameraStage'
 import '../training.css'
 
-const STARTER_SIGNS=['help','doctor','water','yes','no','thank_you']
+const FALLBACK_CORE_SIGNS=['yes','no','help','water','pain','fire','danger','accident','stop','where','name','repeat','understand']
 
 export function Collector(){
   const [label,setLabel]=useState('help')
@@ -14,6 +14,7 @@ export function Collector(){
   const [result,setResult]=useState<any>(null)
   const [training,setTraining]=useState(false)
   const [trainResult,setTrainResult]=useState<any>(null)
+  const [coreMissing,setCoreMissing]=useState<string[]>(FALLBACK_CORE_SIGNS)
   const r=useRecognition('general',collectorId)
 
   const [clipPhrase,setClipPhrase]=useState('')
@@ -22,6 +23,13 @@ export function Collector(){
   const [clipStatus,setClipStatus]=useState('')
 
   useEffect(()=>{if(collectorId && !r.running){void r.start()}},[collectorId])
+  useEffect(()=>{
+    if(r.backendState!=='online')return
+    api<any>('/api/signs').then(data=>{
+      const missing=Array.isArray(data.core_missing)?data.core_missing:[]
+      setCoreMissing(missing.length?missing:FALLBACK_CORE_SIGNS)
+    }).catch(()=>{})
+  },[r.backendState,r.modelVocabularySize])
 
   const start=async(e:FormEvent)=>{
     e.preventDefault()
@@ -99,8 +107,9 @@ export function Collector(){
           <label>Signer ID
             <input value={signer} onChange={e=>setSigner(e.target.value)} disabled={Boolean(collectorId)}/>
           </label>
-          <div className="suggested-signs" aria-label="Starter sign labels">
-            {STARTER_SIGNS.map(sign=><button type="button" key={sign} className={label===sign?'sign-chip selected':'sign-chip'} onClick={()=>setLabel(sign)} disabled={Boolean(collectorId)}>{sign.replaceAll('_',' ')}</button>)}
+          <div className="suggested-signs" aria-label="Core signs that still need verified training">
+            <span className="missing-signs-label">Core gaps · collect these first</span>
+            {coreMissing.map(sign=><button type="button" key={sign} className={label===sign?'sign-chip selected':'sign-chip'} onClick={()=>setLabel(sign)} disabled={Boolean(collectorId)}>{sign.replaceAll('_',' ')}</button>)}
           </div>
           <label className="toggle consent-row"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} disabled={Boolean(collectorId)}/> I have explicit consent to collect this person's landmark sample.</label>
           {!collectorId

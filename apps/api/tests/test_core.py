@@ -18,7 +18,16 @@ def test_health_and_config():
 
 def test_domains_and_signs():
     assert any(d['id'] == 'hospital' for d in client.get('/api/domains').json())
-    assert 'help' in client.get('/api/signs').json()['supported_demo_vocabulary']
+    payload = client.get('/api/signs').json()
+    assert payload['core_total'] == 21
+    assert payload['target_vocabulary'] == [
+        'hello','thank_you','yes','no','help','doctor','hospital','water','pain',
+        'medicine','police','fire','danger','accident','stop','where','name',
+        'student','teacher','repeat','understand'
+    ]
+    assert set(payload['core_supported']).isdisjoint(payload['core_missing'])
+    assert set(payload['core_supported']) | set(payload['core_missing']) == set(payload['target_vocabulary'])
+    assert payload['supported_demo_vocabulary'] == payload['core_supported']
 
 
 def test_reverse_translation_honest_fallback():
@@ -75,3 +84,13 @@ def test_model_train_fails_honestly_without_dataset():
     r=client.post('/api/model/train')
     assert r.status_code == 400
     assert 'Need at least' in r.text or 'insufficient' in r.text
+
+
+def test_core_vocabulary_normalization_and_coverage():
+    from apps.api.app.services.vocabulary_service import core_coverage, normalize_label
+    assert normalize_label('Thank You') == 'thank_you'
+    result = core_coverage(['Hello', 'Thank you', 'Doctor'])
+    assert result['supported'] == ['hello', 'thank_you', 'doctor']
+    assert result['supported_count'] == 3
+    assert result['total'] == 21
+    assert 'help' in result['missing']

@@ -10,6 +10,9 @@ export function Interpreter() {
   const [domain,setDomain]=useState('general')
   const [domains,setDomains]=useState<Array<{id:string;label:string}>>([])
   const [liveSigns,setLiveSigns]=useState<string[]>([])
+  const [coreVocabulary,setCoreVocabulary]=useState<Array<{id:string;display:string;category:string}>>([])
+  const [coreSupported,setCoreSupported]=useState<string[]>([])
+  const [coreMissing,setCoreMissing]=useState<string[]>([])
   const [safeActions,setSafeActions]=useState(false)
   const [actionNotice,setActionNotice]=useState('')
   const [testTarget,setTestTarget]=useState('')
@@ -28,6 +31,9 @@ export function Interpreter() {
       .then(data=>{
         const signs=Array.isArray(data.live_vocabulary)?data.live_vocabulary:[]
         setLiveSigns(signs)
+        setCoreVocabulary(Array.isArray(data.core_vocabulary)?data.core_vocabulary:[])
+        setCoreSupported(Array.isArray(data.core_supported)?data.core_supported:[])
+        setCoreMissing(Array.isArray(data.core_missing)?data.core_missing:[])
         if(!testTarget && signs.length){
           const hello=signs.find((s:string)=>s.toLowerCase()==='hello')
           setTestTarget(hello || signs[0])
@@ -172,6 +178,30 @@ export function Interpreter() {
           {r.modelIsBootstrap&&<p className="readiness-help">Active source: <b>{r.modelSource}</b>. Use Training Studio when you want a project-specific recognizer trained from your own consented data.</p>}
         </section>
 
+
+
+        <section className="core-vocabulary-card">
+          <div className="panel-head">
+            <div><span className="section-label">Project contract</span><h2>Core ISL vocabulary</h2></div>
+            <strong className={coreMissing.length===0?'coverage-badge complete':'coverage-badge'}>
+              {coreSupported.length}/{coreVocabulary.length || 21} live
+            </strong>
+          </div>
+          <div className="core-progress" aria-label={`${coreSupported.length} of ${coreVocabulary.length || 21} required signs are live`}>
+            <span style={{width:`${coreVocabulary.length?(coreSupported.length/coreVocabulary.length)*100:0}%`}}/>
+          </div>
+          <div className="core-sign-grid">
+            {coreVocabulary.map(item=>{
+              const live=coreSupported.includes(item.id)
+              return <span key={item.id} className={live?'core-sign live':'core-sign missing'} title={live?'Recognizable by the active model':'Still requires verified training'}>
+                <i/>{item.display}
+              </span>
+            })}
+          </div>
+          {coreMissing.length>0
+            ?<p className="core-contract-note">Missing signs are shown honestly and are never treated as recognized output. Training Studio highlights them for collection.</p>
+            :<p className="core-contract-note success">All 21 required project signs are backed by a live recognizer.</p>}
+        </section>
 
         <section className="recognizer-test-card">
           <div className="panel-head">

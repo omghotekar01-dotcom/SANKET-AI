@@ -15,18 +15,12 @@ from ..services.clip_service import ClipService
 from ..services.collector_service import CollectorService
 from ..services.context_service import DOMAINS
 from ..services.replay_service import SCENARIOS
+from ..services.vocabulary_service import CORE_VOCABULARY, core_coverage
 
 router = APIRouter(prefix="/api")
 store = LocalStore(settings.db_path)
 clip_service = ClipService(settings.clip_registry)
 collector_service = CollectorService(settings.collected_dir)
-
-PLANNED_DEMO_SIGNS = [
-    "hello", "thank_you", "yes", "no", "help", "doctor", "hospital",
-    "water", "pain", "medicine", "police", "fire", "danger", "accident",
-    "stop", "where", "name", "student", "teacher", "repeat", "understand",
-]
-
 
 @router.get("/health")
 def health():
@@ -74,17 +68,29 @@ def domains():
 def signs():
     from ..runtime import model
 
+    live = list(model.labels) if model.loaded else []
+    coverage = core_coverage(live)
+    target_ids = [item["id"] for item in CORE_VOCABULARY]
     return {
-        "live_vocabulary": model.labels if model.loaded else [],
-        "live_vocabulary_size": len(model.labels) if model.loaded else 0,
+        "live_vocabulary": live,
+        "live_vocabulary_size": len(live),
         "model_backend": model.backend,
         "model_source": model.source,
         "model_is_bootstrap": model.is_bootstrap,
-        "planned_custom_vocabulary": PLANNED_DEMO_SIGNS,
-        "supported_demo_vocabulary": PLANNED_DEMO_SIGNS,
+        "core_vocabulary": CORE_VOCABULARY,
+        "core_supported": coverage["supported"],
+        "core_missing": coverage["missing"],
+        "core_supported_count": coverage["supported_count"],
+        "core_total": coverage["total"],
+        "core_coverage": coverage["fraction"],
+        "target_vocabulary": target_ids,
+        # Backward-compatible field: unlike the old implementation this means
+        # genuinely live target signs, not planned labels.
+        "supported_demo_vocabulary": coverage["supported"],
         "claim": (
-            "live_vocabulary is the exact active recognizer vocabulary. "
-            "Bootstrap weights are external MIT-licensed weights, not SANKET-trained metrics."
+            "live_vocabulary is the exact vocabulary emitted by the currently "
+            "loaded recognizer. core_supported is the intersection with SANKET's "
+            "21-sign project contract; core_missing is never presented as working."
         ),
     }
 
