@@ -450,6 +450,8 @@ def main() -> int:
         "trained_at": datetime.now(timezone.utc).isoformat(),
         "dataset_samples": len(samples),
         "split": split_info,
+        "training_origin": "local_consent_collection",
+        "source": "SANKET Training Studio consented landmark collection",
     }
     (out / "manifest.json").write_text(
         json.dumps(manifest, indent=2), encoding="utf-8"
