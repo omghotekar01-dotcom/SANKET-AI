@@ -1,6 +1,9 @@
 fastapi>=0.115,<1
 uvicorn[standard]>=0.30,<1
 pydantic>=2.8,<3
-numpy>=2.0,<3
-opencv-python>=4.10,<5
+# MediaPipe 0.10.21's legacy Holistic runtime is stable with NumPy 1.26
+# and OpenCV 4.11. Keep these pinned together; changing them requires
+# rerunning the vision compatibility test.
+numpy==1.26.4
+opencv-contrib-python==4.11.0.86
 python-multipart>=0.0.9,<1

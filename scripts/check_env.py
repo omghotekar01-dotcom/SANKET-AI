@@ -1,49 +1,92 @@
 from __future__ import annotations
 
-import importlib.util
 import platform
 import shutil
 import sys
 from pathlib import Path
 
-ROOT=Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[1]
 
 
-def main()->int:
+def main() -> int:
     print("SANKET AI runtime check")
-    print("Python:",sys.version.split()[0], platform.platform())
-    ok=True
+    print("Python:", sys.version.split()[0], platform.platform())
+    ok = True
 
-    if sys.version_info[:2] not in {(3,11),(3,12)}:
-        print("python      WARN - Python 3.11 or 3.12 is required for the supported vision setup.")
-        ok=False
+    if sys.version_info[:2] not in {(3, 11), (3, 12)}:
+        print("python       INCOMPATIBLE - use Python 3.11 or 3.12")
+        ok = False
 
-    for module in ["fastapi","uvicorn","numpy","cv2"]:
-        found=importlib.util.find_spec(module) is not None
-        print(f"{module:12}", "OK" if found else "MISSING")
-        ok &= found
+    if platform.architecture()[0] != "64bit":
+        print("python       INCOMPATIBLE - 64-bit Python is required")
+        ok = False
 
-    mp_ok=False
+    try:
+        import fastapi  # noqa: F401
+        print("fastapi      OK")
+    except Exception as exc:
+        print("fastapi      ERROR", exc)
+        ok = False
+
+    try:
+        import uvicorn  # noqa: F401
+        print("uvicorn      OK")
+    except Exception as exc:
+        print("uvicorn      ERROR", exc)
+        ok = False
+
+    try:
+        import numpy as np
+        numpy_ok = np.__version__ == "1.26.4"
+        print(f"numpy        {'OK' if numpy_ok else 'INCOMPATIBLE'} - {np.__version__}")
+        ok &= numpy_ok
+    except Exception as exc:
+        print("numpy        ERROR", exc)
+        ok = False
+
+    try:
+        import cv2
+        cv_ok = cv2.__version__.startswith("4.11.")
+        print(f"opencv       {'OK' if cv_ok else 'INCOMPATIBLE'} - {cv2.__version__}")
+        ok &= cv_ok
+    except Exception as exc:
+        print("opencv       ERROR", exc)
+        ok = False
+
     try:
         import mediapipe as mp
-        mp_ok=bool(hasattr(mp,"solutions") and hasattr(mp.solutions,"holistic"))
+        from mediapipe.python.solutions import holistic
+        version_ok = getattr(mp, "__version__", "") == "0.10.21"
+        holistic_ok = hasattr(holistic, "Holistic")
+        mp_ok = version_ok and holistic_ok
+        print(
+            f"mediapipe    {'OK' if mp_ok else 'INCOMPATIBLE'} - "
+            f"{getattr(mp, '__version__', 'unknown')} / Holistic={'yes' if holistic_ok else 'no'}"
+        )
+        ok &= mp_ok
     except Exception as exc:
-        print("mediapipe   ERROR",exc)
-    if mp_ok:
-        print(f"{'mediapipe':12} OK - Holistic available")
-    else:
-        print(f"{'mediapipe':12} MISSING/INCOMPATIBLE - run setup_windows.bat")
-    ok &= mp_ok
+        print("mediapipe    ERROR", exc)
+        ok = False
 
-    for exe in ["node","npm"]:
-        found=shutil.which(exe) is not None
-        print(f"{exe:12}", found and shutil.which(exe) or "MISSING")
-        ok &= found
+    for exe in ["node", "npm"]:
+        path = shutil.which(exe)
+        print(f"{exe:12}", path or "MISSING")
+        ok &= bool(path)
 
-    print("Model:", "LOADED ARTIFACT PRESENT" if (ROOT/"ml/artifacts/demo-v1/manifest.json").exists() else "NOT TRAINED YET (camera tracking can still be tested)")
+    node_modules = ROOT / "apps" / "web" / "node_modules"
+    print("web deps     ", "OK" if node_modules.exists() else "MISSING")
+    ok &= node_modules.exists()
+
+    print(
+        "Model:       ",
+        "ARTIFACT PRESENT"
+        if (ROOT / "ml" / "artifacts" / "demo-v1" / "manifest.json").exists()
+        else "NOT TRAINED YET (camera tracking can still be tested)",
+    )
     print("Raw video storage default: OFF")
+
     return 0 if ok else 1
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     raise SystemExit(main())

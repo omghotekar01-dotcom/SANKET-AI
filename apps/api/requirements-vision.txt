@@ -1,3 +1,6 @@
-# Current MediaPipe PyPI releases support Python 3.9-3.12.
-# SANKET AI uses the maintained Python Holistic solution API (mp.solutions.holistic).
-mediapipe>=1.0.1,<2
+# SANKET currently uses the legacy MediaPipe Holistic Python API
+# (mediapipe.python.solutions.holistic). Newer MediaPipe releases removed
+# that API, so this version is intentionally pinned until the project moves
+# to the Tasks API and retrains against its landmark geometry.
+mediapipe==0.10.21
+protobuf>=4.25.3,<5
