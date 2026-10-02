@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {"noImplicitAny": false},
+  "include": ["src", "../../scripts/ts-shims.d.ts"]
+}

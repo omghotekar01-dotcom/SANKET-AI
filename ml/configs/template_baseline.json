@@ -1,0 +1,8 @@
+{
+  "model_version": "template-v1",
+  "feature_schema": "holistic-v1",
+  "sequence_length": 48,
+  "minimum_samples_per_class": 3,
+  "minimum_signers_for_signer_split": 2,
+  "temperature_grid": [0.03, 0.05, 0.08, 0.1, 0.15, 0.2, 0.3, 0.5, 0.8, 1.0, 1.5, 2.0]
+}

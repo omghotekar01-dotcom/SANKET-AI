@@ -11,6 +11,9 @@ Before changing code, every coding agent or human contributor must read, in orde
 5. `prompts/BUILD_SEQUENCE_24H.md`
 6. `prompts/DEMO_ACCEPTANCE_CHECKLIST.md`
 7. `prompts/JUDGE_DEMO_AND_QA.md`
+8. `prompts/IMPLEMENTATION_STATUS.md`
+
+The deeper specifications under `prompts/` remain additive source-of-truth documents and must not be silently contradicted by implementation changes.
 
 ## Mission
 Build a **real-time multimodal Indian Sign Language communication bridge** that uses:
@@ -44,6 +47,11 @@ Do not:
 - execute arbitrary OS commands from gestures,
 - introduce paid API dependencies into the core demo,
 - rewrite stable modules without a measurable reason.
+
+## Implementation rule
+The current prototype follows the same architecture: React + TypeScript frontend, FastAPI backend, MediaPipe/equivalent multimodal perception, bounded temporal features, confidence-aware finite-vocabulary recognition, explicit failure states, verified reverse-ISL assets, accessibility/emergency flows, and optional WebRTC calling.
+
+Live ISL recognition must remain visibly unavailable until a real trained/evaluated artifact is present. Demo Replay must remain clearly labelled and separate from live AI output.
 
 ## Definition of success
 The project is only “demo-ready” when the end-to-end loop repeatedly works:
