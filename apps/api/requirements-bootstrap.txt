@@ -1,3 +1,7 @@
 # Runtime for the MIT-licensed 50-word bootstrap BiLSTM.
-# TensorFlow 2.16 is compatible with Python 3.11/3.12 and NumPy 1.26.
+# The upstream model was trained with tensorflow.keras. Pin Keras to the
+# TensorFlow 2.16 generation; newer Keras releases require newer ml-dtypes
+# float8 types and cannot deserialize this artifact reliably.
 tensorflow==2.16.1
+keras==3.3.3
+ml-dtypes==0.3.2
