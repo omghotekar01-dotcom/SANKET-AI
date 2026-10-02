@@ -21,23 +21,32 @@ store = LocalStore(settings.db_path)
 clip_service = ClipService(settings.clip_registry)
 collector_service = CollectorService(settings.collected_dir)
 
-DEMO_SIGNS = ["hello","thank_you","yes","no","help","doctor","hospital","water","pain","medicine","police","fire","danger","accident","stop","where","name","student","teacher","repeat","understand"]
+PLANNED_DEMO_SIGNS = [
+    "hello", "thank_you", "yes", "no", "help", "doctor", "hospital",
+    "water", "pain", "medicine", "police", "fire", "danger", "accident",
+    "stop", "where", "name", "student", "teacher", "repeat", "understand",
+]
 
 
 @router.get("/health")
 def health():
     from ..runtime import model, perception
+
     return {
         "status": "ok",
         "app": settings.app_name,
         "version": settings.app_version,
         "model_loaded": model.loaded,
         "model_version": model.version,
+        "model_backend": model.backend,
+        "model_source": model.source,
+        "model_is_bootstrap": model.is_bootstrap,
+        "model_vocabulary_size": len(model.labels),
         "model_error": model.load_error,
         "perception_available": perception.available,
         "perception_reason": perception.reason,
         "database": "ok" if store.health() else "degraded",
-        "feature_schema": "holistic-v1",
+        "feature_schema": model.schema_version or "holistic-v1",
     }
 
 
@@ -48,6 +57,7 @@ def config():
         "version": settings.app_version,
         "raw_video_capture": settings.enable_raw_video_capture,
         "calling_enabled": settings.enable_experimental_calling,
+        "bootstrap_enabled": settings.enable_bootstrap_model,
         "recognition_fps": settings.recognition_fps,
         "sequence_length": settings.sequence_length,
         "privacy": "Raw camera video is not stored by default.",
@@ -61,7 +71,20 @@ def domains():
 
 @router.get("/signs")
 def signs():
-    return {"supported_demo_vocabulary": DEMO_SIGNS, "claim": "planned/training vocabulary; live support requires a loaded evaluated model artifact"}
+    from ..runtime import model
+
+    return {
+        "live_vocabulary": model.labels if model.loaded else [],
+        "live_vocabulary_size": len(model.labels) if model.loaded else 0,
+        "model_backend": model.backend,
+        "model_source": model.source,
+        "model_is_bootstrap": model.is_bootstrap,
+        "planned_custom_vocabulary": PLANNED_DEMO_SIGNS,
+        "claim": (
+            "live_vocabulary is the exact active recognizer vocabulary. "
+            "Bootstrap weights are external MIT-licensed weights, not SANKET-trained metrics."
+        ),
+    }
 
 
 @router.post("/translate/text-to-isl")
@@ -83,7 +106,11 @@ def demo_scenarios():
 def collector_start(body: CollectorStartRequest):
     try:
         item = collector_service.start(**body.model_dump())
-        return {"collector_id": item.collector_id, "label": item.label, "raw_video_saved": False}
+        return {
+            "collector_id": item.collector_id,
+            "label": item.label,
+            "raw_video_saved": False,
+        }
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -109,19 +136,24 @@ async def register_sign_clip(
     normalized = phrase.strip()
     if not normalized or len(normalized) > 120:
         raise HTTPException(400, "Phrase must be 1-120 characters")
+
     suffix = Path(file.filename or "clip.webm").suffix.lower()
     if suffix not in {".webm", ".mp4"}:
         raise HTTPException(400, "Only .webm or .mp4 clips are accepted")
+
     payload = await file.read(20 * 1024 * 1024 + 1)
     if len(payload) > 20 * 1024 * 1024:
         raise HTTPException(413, "Clip exceeds 20 MB")
+
     local_dir = settings.clip_dir / "local"
     local_dir.mkdir(parents=True, exist_ok=True)
     relative = f"local/{uuid4().hex}{suffix}"
     (settings.clip_dir / relative).write_bytes(payload)
+
     entries = []
     if settings.clip_registry.exists():
         entries = json.loads(settings.clip_registry.read_text(encoding="utf-8"))
+
     entry = {
         "phrase": normalized,
         "mode": "verified_phrase" if verified else "unverified_local",
@@ -133,35 +165,71 @@ async def register_sign_clip(
     entries.append(entry)
     settings.clip_registry.write_text(json.dumps(entries, indent=2), encoding="utf-8")
     clip_service.reload()
-    return {"stored": True, "entry": entry, "usable_for_reverse_isl": bool(verified)}
+
+    return {
+        "stored": True,
+        "entry": entry,
+        "usable_for_reverse_isl": bool(verified),
+    }
 
 
 @router.get("/metrics")
 def metrics():
     from ..runtime import model
+
     report_path = settings.model_dir / "evaluation.json"
-    if not report_path.exists():
-        return {"available": False, "message": "No evaluated model artifact loaded yet."}
-    try:
-        report = json.loads(report_path.read_text(encoding="utf-8"))
-        return {"available": True, "model_version": model.version, "report": report}
-    except Exception as exc:
-        raise HTTPException(500, f"Evaluation report unreadable: {exc}") from exc
+    if report_path.exists():
+        try:
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            return {
+                "available": True,
+                "kind": "sanket_local_evaluation",
+                "model_version": model.version,
+                "report": report,
+            }
+        except Exception as exc:
+            raise HTTPException(500, f"Evaluation report unreadable: {exc}") from exc
+
+    if model.loaded and model.is_bootstrap:
+        return {
+            "available": False,
+            "kind": "external_bootstrap",
+            "model_version": model.version,
+            "vocabulary_size": len(model.labels),
+            "source": model.source,
+            "message": (
+                "The external bootstrap recognizer is loaded, but SANKET has not "
+                "reproduced a held-out evaluation for those external weights. "
+                "No accuracy number is claimed here."
+            ),
+        }
+
+    return {
+        "available": False,
+        "kind": "none",
+        "message": "No evaluated SANKET model artifact is loaded yet.",
+    }
 
 
 @router.post("/model/reload")
 def model_reload():
     from ..runtime import model
+
     loaded = model.reload()
-    return {"loaded": loaded, "model_version": model.version, "error": model.load_error}
+    return {
+        "loaded": loaded,
+        "model_version": model.version,
+        "model_backend": model.backend,
+        "model_source": model.source,
+        "model_is_bootstrap": model.is_bootstrap,
+        "vocabulary_size": len(model.labels),
+        "error": model.load_error,
+    }
 
 
 @router.post("/model/train")
 def model_train():
-    """Train the fixed local baseline command and reload it.
-
-    This endpoint intentionally exposes no user-supplied command or path.
-    """
+    """Train only the fixed local SANKET baseline command, then prefer it over bootstrap."""
     from ..runtime import model
 
     command = [sys.executable, "-m", "ml.training.train_template"]
@@ -194,6 +262,9 @@ def model_train():
         "trained": True,
         "loaded": loaded,
         "model_version": model.version,
+        "model_backend": model.backend,
+        "model_source": model.source,
+        "model_is_bootstrap": model.is_bootstrap,
         "model_error": model.load_error,
         "evaluation": report,
         "output": completed.stdout[-3500:],
