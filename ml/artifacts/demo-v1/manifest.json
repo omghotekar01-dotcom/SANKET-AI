@@ -1,6 +1,7 @@
 {
   "model_version": "sanket-public-isolated-v1",
   "backend": "temporal_template",
+  "exemplar_k": 1,
   "feature_schema": "holistic-v1",
   "sequence_length": 48,
   "labels": [
@@ -11,12 +12,12 @@
     "school",
     "thank_you"
   ],
-  "temperature": 0.1,
+  "temperature": 0.05,
   "accept_threshold": 0.17666666666666667,
-  "margin_threshold": 0.00407,
+  "margin_threshold": 0.03,
   "motion_threshold": 0.0015,
   "tracking_threshold": 0.48,
-  "trained_at": "2026-10-02T07:38:50.280333+00:00",
+  "trained_at": "2026-10-02T07:45:11.825029+00:00",
   "dataset_samples": 72,
   "split": {
     "mode": "stratified_sample_split_no_signer_claim",
