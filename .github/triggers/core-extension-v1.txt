@@ -1,4 +1,5 @@
-core-extension-v1 retrain 2
-Targets: yes,no,help,stop,water,where
+core-extension-v1 retrain 3
+Targets: yes,no,help,water,where
+STOP is intentionally excluded until a separate verified source is trained.
 Sources: INCLUDE CC-BY-4.0 + CISLR AFL-3.0 + ISL500 academic/research-only.
-Raw videos are never committed. Quality gate required before runtime activation.
+Quality gate required before runtime activation.

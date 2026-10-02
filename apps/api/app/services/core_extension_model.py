@@ -5,7 +5,7 @@ from pathlib import Path
 
 from .temporal_model import TemporalTemplateModel
 
-CORE_EXTENSION_TARGETS = {"yes", "no", "help", "stop", "water", "where"}
+CORE_EXTENSION_TARGETS = {"yes", "no", "help", "water", "where"}
 
 
 class CoreExtensionModel:

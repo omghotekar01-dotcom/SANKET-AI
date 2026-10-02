@@ -37,7 +37,7 @@ jobs:
           from apps.api.app.services.core_extension_model import CoreExtensionModel
           model=CoreExtensionModel(Path("ml/artifacts/core-extension-v1"))
           assert model.loaded, model.load_error
-          assert set(model.labels) == {"yes","no","help","stop","water","where"}
+          assert set(model.labels) == {"yes","no","help","water","where"}
           print(model.quality_reason)
           PY
       - name: Commit quality-gated artifact

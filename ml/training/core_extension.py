@@ -23,7 +23,7 @@ from ml.training.bootstrap_public import (
     slug_label,
 )
 
-TARGETS = ("yes", "no", "help", "stop", "water", "where")
+TARGETS = ("yes", "no", "help", "water", "where")
 ALLOWED_SOURCES = {"INCLUDE", "CISLR", "ISL500", "ISL-DATA", "ISL500 / ISL-DATA"}
 
 
@@ -146,7 +146,7 @@ def annotate(out_dir: Path, counts: dict, sources: dict, licenses: dict):
     report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
     (out_dir / "MODEL_CARD.md").write_text(
         "# SANKET core vocabulary extension v1\n\n"
-        "Targets: yes, no, help, stop, water, where.\n\n"
+        "Targets: yes, no, help, water, where.\n\n"
         "Training source: vidit031/isl-isolated-40words aggregate using INCLUDE "
         "(CC-BY-4.0), CISLR (AFL-3.0), and ISL500/ISL-DATA (research/academic "
         "use only). Raw videos are not redistributed. This extension is for "
