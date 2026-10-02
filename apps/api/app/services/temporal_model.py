@@ -19,17 +19,14 @@ class ModelPrediction:
 
 
 class TemporalTemplateModel:
-    """A real finite-vocabulary temporal baseline trained from landmark sequences.
-
-    It keeps one normalized time template per class and compares a resampled input
-    sequence against every class template. It is deliberately simple, transparent,
-    fast on CPU, and suitable as the first hackathon baseline before GRU/Transformer.
-    """
+    backend = "sanket_temporal_template"
+    is_bootstrap = False
 
     def __init__(self, model_dir: Path):
         self.model_dir = model_dir
         self.loaded = False
         self.version = None
+        self.source = "SANKET local training"
         self.schema_version = None
         self.labels: list[str] = []
         self.sequence_length = 48
@@ -64,6 +61,7 @@ class TemporalTemplateModel:
             self.tracking_threshold = float(manifest.get("tracking_threshold", 0.48))
             self.version = str(manifest["model_version"])
             self.schema_version = str(manifest["feature_schema"])
+            self.source = str(manifest.get("source", "SANKET local training"))
             if self.templates.shape[0] != len(self.labels):
                 raise ValueError("label/template count mismatch")
             self.loaded = True
