@@ -1,0 +1,56 @@
+name: Train SANKET core extension
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/triggers/core-extension-v1.txt"
+
+permissions:
+  contents: write
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install training stack
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r apps/api/requirements-dev.txt
+          python -m pip install -r apps/api/requirements-vision.txt
+          python -m pip install -r apps/api/requirements-public-train.txt
+      - name: Train six-sign real-video core extension
+        run: python -m ml.training.core_extension --max-per-class 16 --min-per-class 3
+      - name: Enforce runtime quality gate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from apps.api.app.services.core_extension_model import CoreExtensionModel
+          model=CoreExtensionModel(Path("ml/artifacts/core-extension-v1"))
+          assert model.loaded, model.load_error
+          assert set(model.labels) == {"yes","no","help","stop","water","where"}
+          print(model.quality_reason)
+          PY
+      - name: Commit quality-gated artifact
+        run: |
+          git config user.name "SANKET AI Trainer"
+          git config user.email "actions@users.noreply.github.com"
+          git add -f ml/artifacts/core-extension-v1/model.npz
+          git add -f ml/artifacts/core-extension-v1/manifest.json
+          git add -f ml/artifacts/core-extension-v1/evaluation.json
+          git add -f ml/artifacts/core-extension-v1/MODEL_CARD.md
+          if git diff --cached --quiet; then
+            echo "No artifact changes."
+          else
+            git commit -m "model: add quality-gated six-sign core extension [skip ci]"
+            git push origin HEAD:main
+          fi

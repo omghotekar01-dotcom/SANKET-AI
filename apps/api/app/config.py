@@ -22,6 +22,7 @@ class Settings:
     web_origin: str = os.getenv("WEB_ORIGIN", "http://localhost:5173")
     model_dir: Path = REPO_ROOT / os.getenv("MODEL_DIR", "ml/artifacts/demo-v1")
     bootstrap_dir: Path = REPO_ROOT / os.getenv("BOOTSTRAP_MODEL_DIR", "ml/artifacts/bootstrap-50")
+    core_extension_dir: Path = REPO_ROOT / os.getenv("CORE_EXTENSION_MODEL_DIR", "ml/artifacts/core-extension-v1")
     db_path: Path = REPO_ROOT / os.getenv("DB_PATH", "data/local/sanket.db")
     collected_dir: Path = REPO_ROOT / "data/local/collected"
     clip_registry: Path = REPO_ROOT / "assets/sign_clips/registry.json"

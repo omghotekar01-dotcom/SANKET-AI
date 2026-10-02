@@ -24,7 +24,7 @@ collector_service = CollectorService(settings.collected_dir)
 
 @router.get("/health")
 def health():
-    from ..runtime import model, perception
+    from ..runtime import core_extension, model, perception
 
     return {
         "status": "ok",
@@ -38,6 +38,11 @@ def health():
         "model_vocabulary_size": len(model.labels),
         "model_error": model.load_error,
         "model_selection_reason": model.selection_reason,
+        "core_extension_loaded": core_extension.loaded,
+        "core_extension_version": core_extension.version,
+        "core_extension_labels": core_extension.labels,
+        "core_extension_quality": core_extension.quality_reason,
+        "core_extension_error": core_extension.load_error,
         "perception_available": perception.available,
         "perception_reason": perception.reason,
         "database": "ok" if store.health() else "degraded",
@@ -66,9 +71,13 @@ def domains():
 
 @router.get("/signs")
 def signs():
-    from ..runtime import model
+    from ..runtime import core_extension, model
 
     live = list(model.labels) if model.loaded else []
+    if core_extension.loaded:
+        for label in core_extension.labels:
+            if label not in live:
+                live.append(label)
     coverage = core_coverage(live)
     target_ids = [item["id"] for item in CORE_VOCABULARY]
     return {
@@ -77,6 +86,9 @@ def signs():
         "model_backend": model.backend,
         "model_source": model.source,
         "model_is_bootstrap": model.is_bootstrap,
+        "core_extension_loaded": core_extension.loaded,
+        "core_extension_labels": core_extension.labels,
+        "core_extension_quality": core_extension.quality_reason,
         "core_vocabulary": CORE_VOCABULARY,
         "core_supported": coverage["supported"],
         "core_missing": coverage["missing"],
@@ -221,16 +233,20 @@ def metrics():
 
 @router.post("/model/reload")
 def model_reload():
-    from ..runtime import model
+    from ..runtime import core_extension, model
 
     loaded = model.reload()
+    core_extension.reload()
     return {
         "loaded": loaded,
         "model_version": model.version,
         "model_backend": model.backend,
         "model_source": model.source,
         "model_is_bootstrap": model.is_bootstrap,
-        "vocabulary_size": len(model.labels),
+        "vocabulary_size": len(model.labels) + len(core_extension.labels),
+        "core_extension_loaded": core_extension.loaded,
+        "core_extension_labels": core_extension.labels,
+        "core_extension_error": core_extension.load_error,
         "error": model.load_error,
     }
 

@@ -6,24 +6,54 @@ from time import perf_counter
 from fastapi import WebSocket, WebSocketDisconnect
 
 from ..api.routes import collector_service
-from ..runtime import model, perception
+from ..runtime import core_extension, model, perception
 from ..services.context_service import DOMAINS
 from ..services.inference_service import RecognitionSession
+from ..schemas import RecognitionState
+
+
+def _event_rank(event) -> tuple[int, float]:
+    if event is None:
+        return (-1, 0.0)
+    rank = {
+        RecognitionState.ACCEPTED: 4,
+        RecognitionState.NEED_REPEAT: 3,
+        RecognitionState.TRACKING_LOST: 2,
+        RecognitionState.NO_SIGN: 1,
+    }.get(event.state, 0)
+    return (rank, float(event.confidence or 0.0))
+
+
+def _choose_event(primary, extension):
+    # The extension contains only labels absent from the bootstrap core set and
+    # is enabled only after its held-out quality gate passes.
+    if extension is not None and extension.state == RecognitionState.ACCEPTED:
+        return extension
+    if primary is not None and primary.state == RecognitionState.ACCEPTED:
+        return primary
+    return max((e for e in (extension, primary) if e is not None), key=_event_rank, default=None)
 
 
 async def recognition_socket(websocket: WebSocket):
     await websocket.accept()
-    session = RecognitionSession(model)
+    primary_session = RecognitionSession(model)
+    extension_session = RecognitionSession(core_extension) if core_extension.loaded else None
     collector_id = websocket.query_params.get("collector_id")
+
+    live_labels = list(model.labels) if model.loaded else []
+    if core_extension.loaded:
+        live_labels.extend(label for label in core_extension.labels if label not in live_labels)
 
     await websocket.send_json({
         "type": "ready",
-        "model_loaded": model.loaded,
+        "model_loaded": bool(model.loaded or core_extension.loaded),
         "model_version": model.version,
         "model_backend": model.backend,
         "model_source": model.source,
         "model_is_bootstrap": model.is_bootstrap,
-        "model_vocabulary_size": len(model.labels),
+        "model_vocabulary_size": len(live_labels),
+        "core_extension_loaded": core_extension.loaded,
+        "core_extension_labels": core_extension.labels,
         "perception_available": perception.available,
         "perception_reason": perception.reason,
         "collector_id": collector_id,
@@ -48,7 +78,6 @@ async def recognition_socket(websocket: WebSocket):
                     continue
 
                 if collector_id:
-                    # Local SANKET training always collects the compact native schema.
                     collector_service.append(collector_id, result.vector)
 
                 await websocket.send_json({
@@ -58,21 +87,29 @@ async def recognition_socket(websocket: WebSocket):
                     "landmark_latency_ms": round(result.latency_ms, 2),
                 })
 
-                if not model.loaded:
+                if not model.loaded and not core_extension.loaded:
                     await websocket.send_json({
                         "type": "model_unavailable",
-                        "message": model.load_error,
+                        "message": model.load_error or core_extension.load_error,
                         "tracking": result.tracking,
                         "latency_ms": round((perf_counter() - started) * 1000, 2),
                     })
                     continue
 
-                inference_vector = (
-                    result.bootstrap_vector
-                    if model.input_schema == "bootstrap"
-                    else result.vector
-                )
-                event = session.push(inference_vector, result.tracking)
+                primary_event = None
+                if model.loaded:
+                    primary_vector = (
+                        result.bootstrap_vector
+                        if model.input_schema == "bootstrap"
+                        else result.vector
+                    )
+                    primary_event = primary_session.push(primary_vector, result.tracking)
+
+                extension_event = None
+                if extension_session is not None:
+                    extension_event = extension_session.push(result.vector, result.tracking)
+
+                event = _choose_event(primary_event, extension_event)
                 if event is not None:
                     await websocket.send_json(event.model_dump(mode="json"))
 
@@ -89,10 +126,14 @@ async def recognition_socket(websocket: WebSocket):
                     if domain not in DOMAINS:
                         await websocket.send_json({"type": "error", "message": "Unknown domain"})
                     else:
-                        session.set_domain(domain)
+                        primary_session.set_domain(domain)
+                        if extension_session is not None:
+                            extension_session.set_domain(domain)
                         await websocket.send_json({"type": "domain", "domain": domain})
                 elif kind == "reset":
-                    session.reset()
+                    primary_session.reset()
+                    if extension_session is not None:
+                        extension_session.reset()
                     await websocket.send_json({"type": "reset", "ok": True})
                 elif kind == "ping":
                     await websocket.send_json({"type": "pong", "seq": payload.get("seq")})

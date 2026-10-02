@@ -1,0 +1,4 @@
+core-extension-v1
+Targets: yes,no,help,stop,water,where
+Source policy: INCLUDE CC-BY-4.0 + CISLR AFL-3.0 only.
+Quality gate required before runtime activation.
