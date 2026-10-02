@@ -56,6 +56,12 @@ def main() -> int:
     print("tensorflow  ", f"{'OK' if tf_ok else 'MISSING/INCOMPATIBLE'} - {tensorflow_version}")
     ok &= tf_ok
 
+    jax_version = _version("jax")
+    jaxlib_version = _version("jaxlib")
+    jax_absent = jax_version is None and jaxlib_version is None
+    print("jax          ", "ABSENT - OK" if jax_absent else f"REMOVE - jax={jax_version} jaxlib={jaxlib_version}")
+    ok &= jax_absent
+
     holistic_path = BOOTSTRAP_DIR / "holistic_landmarker.task"
     holistic_ok = holistic_path.exists() and holistic_path.stat().st_size == 13_683_609
     print("holistic task", "OK" if holistic_ok else "MISSING/INVALID")
@@ -73,6 +79,19 @@ def main() -> int:
             labels_ok = False
     print("50-word model", "OK" if bootstrap_ok and labels_ok else "MISSING/INVALID")
     ok &= bootstrap_ok and labels_ok
+
+    try:
+        from apps.api.app.services.bootstrap_model import BootstrapKerasModel
+        runtime_model = BootstrapKerasModel(BOOTSTRAP_DIR)
+        runtime_model_ok = runtime_model.loaded and len(runtime_model.labels) == 50
+        print(
+            "model runtime ",
+            f"OK - {runtime_model.version}" if runtime_model_ok else f"ERROR - {runtime_model.load_error}",
+        )
+        ok &= runtime_model_ok
+    except Exception as exc:
+        print("model runtime  ERROR", exc)
+        ok = False
 
     try:
         from mediapipe.tasks.python import vision as mv

@@ -40,11 +40,12 @@ jobs:
           python -m pip install -r apps/api/requirements-dev.txt
           python -m pip install -r apps/api/requirements-vision.txt
           python -m pip install -r apps/api/requirements-bootstrap.txt
+          python -m pip uninstall -y jax jaxlib
       - name: Download verified bootstrap assets
         run: python scripts/install_bootstrap.py
-      - name: Load 50-word Keras recognizer
+      - name: Load Holistic Tasks and 50-word Keras recognizer together
         run: |
-          python -c "from pathlib import Path; from apps.api.app.services.bootstrap_model import BootstrapKerasModel; m=BootstrapKerasModel(Path('ml/artifacts/bootstrap-50')); assert m.loaded, m.load_error; assert len(m.labels)==50; print(m.version, len(m.labels))"
+          python -c "from pathlib import Path; from mediapipe.tasks.python import vision as mv; from apps.api.app.services.bootstrap_model import BootstrapKerasModel; assert hasattr(mv,'HolisticLandmarker'); m=BootstrapKerasModel(Path('ml/artifacts/bootstrap-50')); assert m.loaded, m.load_error; assert len(m.labels)==50; print(m.version, len(m.labels))"
 
   web:
     runs-on: ubuntu-latest
