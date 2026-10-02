@@ -13,12 +13,13 @@ from uuid import uuid4
 import cv2
 import numpy as np
 from huggingface_hub import hf_hub_download
+from mediapipe.python.solutions import holistic as mp_holistic
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from apps.api.app.services.landmark_service import HolisticLandmarkService
+from apps.api.app.services.feature_schema import FACE_INDICES, POSE_INDICES, SCHEMA
 
 HF_REPO = "vidit031/isl-isolated-40words"
 ALLOWED_SOURCES = {"INCLUDE", "CISLR"}
@@ -32,13 +33,107 @@ def slug_label(word: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", word.strip().lower()).strip("_")
 
 
+class OfflineHolisticExtractor:
+    """Stable offline extractor using MediaPipe 0.10.21 legacy Holistic.
+
+    Live SANKET uses Tasks. Both paths expose the same landmark families; this
+    extractor maps them into the exact native 226-D SANKET feature contract.
+    """
+
+    def __init__(self) -> None:
+        self.holistic = mp_holistic.Holistic(
+            static_image_mode=False,
+            model_complexity=1,
+            smooth_landmarks=True,
+            enable_segmentation=False,
+            refine_face_landmarks=False,
+            min_detection_confidence=0.45,
+            min_tracking_confidence=0.45,
+        )
+
+    def close(self) -> None:
+        self.holistic.close()
+
+    @staticmethod
+    def _points(landmarks, count: int, dims: int, indices=None) -> tuple[np.ndarray, bool]:
+        if landmarks is None:
+            return np.zeros(count * dims, dtype=np.float32), False
+        source = landmarks.landmark
+        picks = range(count) if indices is None else indices
+        values: list[float] = []
+        for i in picks:
+            lm = source[i]
+            values.extend([float(lm.x), float(lm.y), float(lm.z)])
+            if dims == 4:
+                values.append(float(getattr(lm, "visibility", 1.0) or 0.0))
+        return np.asarray(values, dtype=np.float32), True
+
+    @staticmethod
+    def _normalize_xyz(
+        values: np.ndarray,
+        origin_x: float,
+        origin_y: float,
+        scale: float,
+        stride: int,
+    ) -> np.ndarray:
+        out = values.copy()
+        for i in range(0, len(out), stride):
+            out[i] = (out[i] - origin_x) / scale
+            out[i + 1] = (out[i + 1] - origin_y) / scale
+            out[i + 2] = out[i + 2] / scale
+        return out
+
+    def extract(self, bgr: np.ndarray) -> np.ndarray | None:
+        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+        result = self.holistic.process(rgb)
+
+        left, has_left = self._points(result.left_hand_landmarks, 21, 3)
+        right, has_right = self._points(result.right_hand_landmarks, 21, 3)
+        pose, has_pose = self._points(
+            result.pose_landmarks, len(POSE_INDICES), 4, POSE_INDICES
+        )
+        face, has_face = self._points(
+            result.face_landmarks, len(FACE_INDICES), 3, FACE_INDICES
+        )
+
+        if not (has_left or has_right or has_pose):
+            return None
+
+        origin_x, origin_y, scale = 0.5, 0.5, 0.35
+        if result.pose_landmarks is not None:
+            ls = result.pose_landmarks.landmark[11]
+            rs = result.pose_landmarks.landmark[12]
+            origin_x = (ls.x + rs.x) / 2.0
+            origin_y = (ls.y + rs.y) / 2.0
+            scale = max(float(np.hypot(ls.x - rs.x, ls.y - rs.y)), 0.05)
+
+        left = self._normalize_xyz(left, origin_x, origin_y, scale, 3)
+        right = self._normalize_xyz(right, origin_x, origin_y, scale, 3)
+        pose = self._normalize_xyz(pose, origin_x, origin_y, scale, 4)
+        face = self._normalize_xyz(face, origin_x, origin_y, scale, 3)
+        masks = np.asarray(
+            [has_left, has_right, has_pose, has_face], dtype=np.float32
+        )
+        vector = np.concatenate([left, right, pose, face, masks]).astype(np.float32)
+        if vector.shape[0] != SCHEMA.feature_dim:
+            raise RuntimeError(
+                f"offline feature schema mismatch {vector.shape[0]} != {SCHEMA.feature_dim}"
+            )
+        return vector
+
+
 def load_metadata() -> list[dict]:
     path = hf_hub_download(HF_REPO, "metadata.csv", repo_type="dataset")
     with open(path, "r", encoding="utf-8-sig", newline="") as handle:
         return list(csv.DictReader(handle))
 
 
-def select_rows(rows: list[dict], class_count: int, max_per_class: int, min_per_class: int):
+def select_rows(
+    rows: list[dict],
+    class_count: int,
+    max_per_class: int,
+    min_per_class: int,
+):
     grouped: dict[str, list[dict]] = defaultdict(list)
     for row in rows:
         source = (row.get("dataset") or "").strip()
@@ -59,7 +154,9 @@ def select_rows(rows: list[dict], class_count: int, max_per_class: int, min_per_
         )
 
     selected: list[str] = [w for w in PREFERRED if w in eligible]
-    for word, clips in sorted(eligible.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+    for word, clips in sorted(
+        eligible.items(), key=lambda kv: (-len(kv[1]), kv[0])
+    ):
         if word not in selected:
             selected.append(word)
         if len(selected) >= class_count:
@@ -79,14 +176,20 @@ def select_rows(rows: list[dict], class_count: int, max_per_class: int, min_per_
     }
 
 
-def extract_sequence(video_path: Path, perception: HolisticLandmarkService, max_frames: int = 42):
+def extract_sequence(
+    video_path: Path,
+    extractor: OfflineHolisticExtractor,
+    max_frames: int = 42,
+):
     cap = cv2.VideoCapture(str(video_path))
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     if total <= 0:
         cap.release()
         return None
 
-    wanted = set(np.linspace(0, total - 1, min(max_frames, total), dtype=int).tolist())
+    wanted = set(
+        np.linspace(0, total - 1, min(max_frames, total), dtype=int).tolist()
+    )
     sequence: list[np.ndarray] = []
     frame_index = 0
 
@@ -95,18 +198,9 @@ def extract_sequence(video_path: Path, perception: HolisticLandmarkService, max_
         if not ok:
             break
         if frame_index in wanted:
-            enc_ok, encoded = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 86])
-            if enc_ok:
-                try:
-                    result = perception.extract_jpeg(encoded.tobytes())
-                    if (
-                        result.tracking.get("pose")
-                        or result.tracking.get("left_hand")
-                        or result.tracking.get("right_hand")
-                    ):
-                        sequence.append(result.vector)
-                except Exception:
-                    pass
+            vector = extractor.extract(frame)
+            if vector is not None:
+                sequence.append(vector)
         frame_index += 1
 
     cap.release()
@@ -115,57 +209,71 @@ def extract_sequence(video_path: Path, perception: HolisticLandmarkService, max_
     return np.stack(sequence).astype(np.float32)
 
 
-def build_landmarks(out_dir: Path, classes: int, max_per_class: int, min_per_class: int):
+def build_landmarks(
+    out_dir: Path,
+    classes: int,
+    max_per_class: int,
+    min_per_class: int,
+):
     rows = load_metadata()
     selected = select_rows(rows, classes, max_per_class, min_per_class)
+    print("[public-train] selected:", {k: len(v) for k, v in selected.items()})
 
-    task_asset = REPO_ROOT / "ml/artifacts/bootstrap-50/holistic_landmarker.task"
-    perception = HolisticLandmarkService(task_asset)
-    if not perception.available:
-        raise RuntimeError(perception.reason or "Holistic landmarker unavailable")
-
+    extractor = OfflineHolisticExtractor()
     out_dir.mkdir(parents=True, exist_ok=True)
     saved = Counter()
     provenance = Counter()
 
-    for word, clips in selected.items():
-        label = slug_label(word)
-        for row in clips:
-            source = (row.get("dataset") or "").strip()
-            remote_path = row["video_path"]
-            local_video = Path(hf_hub_download(HF_REPO, remote_path, repo_type="dataset"))
-            seq = extract_sequence(local_video, perception)
-            if seq is None:
-                continue
+    try:
+        for word, clips in selected.items():
+            label = slug_label(word)
+            for row in clips:
+                source = (row.get("dataset") or "").strip()
+                remote_path = row["video_path"]
+                local_video = Path(
+                    hf_hub_download(HF_REPO, remote_path, repo_type="dataset")
+                )
+                seq = extract_sequence(local_video, extractor)
+                if seq is None:
+                    print(f"[public-train] skipped low-tracking clip: {remote_path}")
+                    continue
 
-            sample_id = uuid4().hex
-            npz_name = f"{sample_id}.npz"
-            np.savez_compressed(out_dir / npz_name, sequence=seq)
-            meta = {
-                "sample_id": sample_id,
-                "label": label,
-                "signer_id": "public-aggregate",
-                "consent": False,
-                "usage_authorized": True,
-                "source_type": "public_research_dataset",
-                "source_dataset": source,
-                "source_repository": row.get("repository"),
-                "source_license": row.get("license"),
-                "source_video_path": remote_path,
-                "review_status": row.get("review_status"),
-                "frame_count": int(seq.shape[0]),
-                "feature_schema": "holistic-v1",
-                "feature_path": npz_name,
-            }
-            (out_dir / f"{sample_id}.json").write_text(
-                json.dumps(meta, indent=2), encoding="utf-8"
-            )
-            saved[label] += 1
-            provenance[source] += 1
+                sample_id = uuid4().hex
+                npz_name = f"{sample_id}.npz"
+                np.savez_compressed(out_dir / npz_name, sequence=seq)
+                meta = {
+                    "sample_id": sample_id,
+                    "label": label,
+                    "signer_id": "public-aggregate",
+                    "consent": False,
+                    "usage_authorized": True,
+                    "source_type": "public_research_dataset",
+                    "source_dataset": source,
+                    "source_repository": row.get("repository"),
+                    "source_license": row.get("license"),
+                    "source_video_path": remote_path,
+                    "review_status": row.get("review_status"),
+                    "frame_count": int(seq.shape[0]),
+                    "feature_schema": "holistic-v1",
+                    "feature_path": npz_name,
+                }
+                (out_dir / f"{sample_id}.json").write_text(
+                    json.dumps(meta, indent=2), encoding="utf-8"
+                )
+                saved[label] += 1
+                provenance[source] += 1
+                print(
+                    f"[public-train] {label}: {saved[label]} "
+                    f"({seq.shape[0]} usable frames)"
+                )
+    finally:
+        extractor.close()
 
     usable = {k: v for k, v in saved.items() if v >= 3}
     if len(usable) < 3:
-        raise RuntimeError(f"Too few usable classes after landmark extraction: {dict(saved)}")
+        raise RuntimeError(
+            f"Too few usable classes after landmark extraction: {dict(saved)}"
+        )
 
     for meta_path in out_dir.glob("*.json"):
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
@@ -201,7 +309,8 @@ def annotate_artifact(out_dir: Path, counts: dict, provenance: dict):
     report["class_counts"] = counts
     report["claims_note"] = (
         "Bootstrap metrics apply only to this isolated-sign public sample holdout. "
-        "They are not evidence of unrestricted ISL translation or signer-independent performance."
+        "They are not evidence of unrestricted ISL translation or "
+        "signer-independent performance."
     )
 
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
@@ -215,10 +324,12 @@ def annotate_artifact(out_dir: Path, counts: dict, provenance: dict):
         "- Aggregate: vidit031/isl-isolated-40words\n"
         "- Training sources restricted to INCLUDE and CISLR rows\n"
         "- Source videos are downloaded during training and are not committed\n"
-        "- Feature extractor: SANKET Holistic native 226-D schema\n"
+        "- Offline feature extractor: MediaPipe 0.10.21 Holistic\n"
+        "- Feature contract: SANKET native 226-D schema\n"
         "- Model: temporal template baseline\n"
         "- Evaluation: stratified sample holdout, not signer-disjoint\n\n"
-        "Do not claim unrestricted ISL translation or signer-independent accuracy from this artifact.\n\n"
+        "Do not claim unrestricted ISL translation or signer-independent "
+        "accuracy from this artifact.\n\n"
         + original,
         encoding="utf-8",
     )
@@ -247,8 +358,13 @@ def main() -> int:
 
     completed = subprocess.run(
         [
-            sys.executable, "-m", "ml.training.train_template",
-            "--data", args.data, "--out", args.out,
+            sys.executable,
+            "-m",
+            "ml.training.train_template",
+            "--data",
+            args.data,
+            "--out",
+            args.out,
         ],
         cwd=REPO_ROOT,
         text=True,
@@ -260,11 +376,16 @@ def main() -> int:
         return completed.returncode
 
     annotate_artifact(out_dir, counts, provenance)
-    print(json.dumps({
-        "artifact": str(out_dir),
-        "class_counts": counts,
-        "provenance": provenance,
-    }, indent=2))
+    print(
+        json.dumps(
+            {
+                "artifact": str(out_dir),
+                "class_counts": counts,
+                "provenance": provenance,
+            },
+            indent=2,
+        )
+    )
     return 0
 
 
