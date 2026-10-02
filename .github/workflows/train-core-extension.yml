@@ -29,7 +29,7 @@ jobs:
           python -m pip install -r apps/api/requirements-vision.txt
           python -m pip install -r apps/api/requirements-public-train.txt
       - name: Train six-sign real-video core extension
-        run: python -m ml.training.core_extension --max-per-class 16 --min-per-class 3
+        run: python -m ml.training.core_extension --max-per-class 18 --min-per-class 8
       - name: Enforce runtime quality gate
         run: |
           python - <<'PY'

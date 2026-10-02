@@ -24,7 +24,7 @@ from ml.training.bootstrap_public import (
 )
 
 TARGETS = ("yes", "no", "help", "stop", "water", "where")
-ALLOWED_SOURCES = {"INCLUDE", "CISLR"}
+ALLOWED_SOURCES = {"INCLUDE", "CISLR", "ISL500", "ISL-DATA", "ISL500 / ISL-DATA"}
 
 
 def select_target_rows(rows: list[dict], max_per_class: int, min_per_class: int):
@@ -45,7 +45,7 @@ def select_target_rows(rows: list[dict], max_per_class: int, min_per_class: int)
     missing = {word: count for word, count in counts.items() if count < min_per_class}
     if missing:
         raise RuntimeError(
-            "Not enough CC-BY/AFL aggregate clips for required core targets: "
+            "Not enough eligible public/research clips for required core targets: "
             + json.dumps(missing, sort_keys=True)
         )
 
@@ -127,8 +127,11 @@ def annotate(out_dir: Path, counts: dict, sources: dict, licenses: dict):
     manifest["public_licenses"] = licenses
     manifest["target_contract"] = list(TARGETS)
     manifest["license_note"] = (
-        "Only INCLUDE (CC-BY-4.0) and CISLR (AFL-3.0) aggregate rows were "
-        "eligible. Source videos were downloaded during training and are not redistributed."
+        "Eligible rows came from INCLUDE (CC-BY-4.0), CISLR (AFL-3.0), and "
+        "ISL500/ISL-DATA (research/academic use only). Source videos were "
+        "downloaded during training and are not redistributed. This derived "
+        "extension remains research/academic-use only unless ISL500 authors "
+        "grant broader terms."
     )
     manifest["split"]["limitation"] = (
         "Aggregate metadata does not provide a reliable signer identity for every clip; "
@@ -144,9 +147,11 @@ def annotate(out_dir: Path, counts: dict, sources: dict, licenses: dict):
     (out_dir / "MODEL_CARD.md").write_text(
         "# SANKET core vocabulary extension v1\n\n"
         "Targets: yes, no, help, stop, water, where.\n\n"
-        "Training source: vidit031/isl-isolated-40words aggregate, restricted "
-        "to INCLUDE (CC-BY-4.0) and CISLR (AFL-3.0) rows. Raw videos are not "
-        "redistributed. Evaluation is a sample holdout, not signer-independent.\n",
+        "Training source: vidit031/isl-isolated-40words aggregate using INCLUDE "
+        "(CC-BY-4.0), CISLR (AFL-3.0), and ISL500/ISL-DATA (research/academic "
+        "use only). Raw videos are not redistributed. This extension is for "
+        "research/academic use and its evaluation is a sample holdout, not "
+        "signer-independent.\n",
         encoding="utf-8",
     )
 

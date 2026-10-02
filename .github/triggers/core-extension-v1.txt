@@ -1,4 +1,4 @@
-core-extension-v1
+core-extension-v1 retrain 2
 Targets: yes,no,help,stop,water,where
-Source policy: INCLUDE CC-BY-4.0 + CISLR AFL-3.0 only.
-Quality gate required before runtime activation.
+Sources: INCLUDE CC-BY-4.0 + CISLR AFL-3.0 + ISL500 academic/research-only.
+Raw videos are never committed. Quality gate required before runtime activation.
