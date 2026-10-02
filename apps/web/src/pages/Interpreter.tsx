@@ -9,6 +9,7 @@ import type { TranscriptTurn } from '../types'
 export function Interpreter() {
   const [domain,setDomain]=useState('general')
   const [domains,setDomains]=useState<Array<{id:string;label:string}>>([])
+  const [liveSigns,setLiveSigns]=useState<string[]>([])
   const [safeActions,setSafeActions]=useState(false)
   const [actionNotice,setActionNotice]=useState('')
   const [demoActive,setDemoActive]=useState(false)
@@ -18,8 +19,15 @@ export function Interpreter() {
   useEffect(()=>{api<Array<{id:string;label:string}>>('/api/domains').then(setDomains).catch(()=>{})},[])
 
   useEffect(()=>{
+    if(r.backendState!=='online')return
+    api<any>('/api/signs')
+      .then(data=>setLiveSigns(Array.isArray(data.live_vocabulary)?data.live_vocabulary:[]))
+      .catch(()=>setLiveSigns([]))
+  },[r.backendState,r.modelBackend,r.modelVocabularySize])
+
+  useEffect(()=>{
     if(!safeActions||r.prediction?.state!=='ACCEPTED'||!r.prediction.label)return
-    const label=r.prediction.label
+    const label=r.prediction.label.toLowerCase()
     if(label==='stop'){
       setActionNotice('Sign action: interpretation stopped')
       r.stop()
@@ -65,12 +73,13 @@ export function Interpreter() {
   const stageStatus=useMemo(()=>{
     if(r.backendState==='offline')return 'Recognition service offline'
     if(r.perceptionState==='unavailable')return 'Vision runtime needs setup'
-    if(r.modelState==='missing')return 'Tracking ready · model needs training'
+    if(r.modelState==='missing')return 'No recognition model loaded'
     if(r.prediction?.state==='NEED_REPEAT')return 'Please repeat the sign'
     if(r.prediction?.state==='TRACKING_LOST')return 'Move back into frame'
     if(r.prediction?.state==='NO_SIGN')return 'Ready for your next sign'
-    return 'Listening for signs'
-  },[r.backendState,r.perceptionState,r.modelState,r.prediction])
+    if(r.modelIsBootstrap)return `Bootstrap recognizer · ${r.modelVocabularySize} signs`
+    return 'Local SANKET recognizer'
+  },[r.backendState,r.perceptionState,r.modelState,r.modelIsBootstrap,r.modelVocabularySize,r.prediction])
 
   return <div className="interpreter-page">
     <header className="session-header">
@@ -90,6 +99,11 @@ export function Interpreter() {
     </header>
 
     {demoActive&&<div className="demo-banner" role="status"><span className="demo-dot"/> <strong>Labelled replay</strong><span>{demoState}</span><button className="text-button" onClick={()=>setDemoActive(false)}>Dismiss</button></div>}
+
+    {r.modelIsBootstrap&&<div className="model-provenance">
+      <span className="model-provenance-badge">Bootstrap model</span>
+      <span>50-word temporal ISL recognizer is active. These MIT-licensed external weights are a starting model; a SANKET-trained local model automatically replaces them when you train one.</span>
+    </div>}
 
     <div className="studio-layout">
       <section className="studio-main">
@@ -112,7 +126,7 @@ export function Interpreter() {
               <strong>Assistive output</strong>
             </div>
             <label className="switch-row"><span><b>Speak accepted text</b><small>Use system text-to-speech after an accepted sign.</small></span><input type="checkbox" checked={r.ttsEnabled} onChange={e=>r.setTtsEnabled(e.target.checked)}/></label>
-            <label className="switch-row"><span><b>Safe sign actions</b><small>Allow only Stop, Repeat and local Danger alerts.</small></span><input type="checkbox" checked={safeActions} onChange={e=>setSafeActions(e.target.checked)}/></label>
+            <label className="switch-row"><span><b>Safe sign actions</b><small>Allow only Stop, Repeat and local Danger alerts when those labels exist in the active model.</small></span><input type="checkbox" checked={safeActions} onChange={e=>setSafeActions(e.target.checked)}/></label>
           </section>
         </div>
 
@@ -121,16 +135,31 @@ export function Interpreter() {
 
       <aside className="studio-rail">
         <Transcript turns={r.transcript} onClear={r.reset}/>
+
         <section className="readiness-card">
           <div className="panel-head"><div><span className="section-label">System</span><h2>Readiness</h2></div><button className="text-button" onClick={r.reconnect}>Retry</button></div>
           <ReadinessRow label="Local API" state={r.backendState==='online'?'ready':r.backendState==='offline'?'error':'pending'} value={r.backendState==='online'?'Connected':r.backendState==='offline'?'Offline':'Checking'}/>
-          <ReadinessRow label="Vision" state={r.perceptionState==='ready'?'ready':r.perceptionState==='unavailable'?'error':'pending'} value={r.perceptionState==='ready'?'MediaPipe ready':r.perceptionState==='unavailable'?'Needs setup':'Waiting for API'}/>
-          <ReadinessRow label="Sign model" state={r.modelState==='loaded'?'ready':r.modelState==='missing'?'warn':'pending'} value={r.modelState==='loaded'?'Loaded':r.modelState==='missing'?'Needs training':'Waiting for API'}/>
+          <ReadinessRow label="Vision" state={r.perceptionState==='ready'?'ready':r.perceptionState==='unavailable'?'error':'pending'} value={r.perceptionState==='ready'?'Holistic ready':r.perceptionState==='unavailable'?'Needs setup':'Waiting for API'}/>
+          <ReadinessRow
+            label="Sign model"
+            state={r.modelState==='loaded'?'ready':r.modelState==='missing'?'error':'pending'}
+            value={r.modelState==='loaded'?(r.modelIsBootstrap?`Bootstrap · ${r.modelVocabularySize}`:`Local · ${r.modelVocabularySize}`):r.modelState==='missing'?'Unavailable':'Waiting for API'}
+          />
           <ReadinessRow label="Tracking" state={r.landmarkLatency?'ready':'pending'} value={r.landmarkLatency?`${r.landmarkLatency.toFixed(0)} ms`:'—'}/>
-          {r.backendState==='offline'&&<p className="readiness-help">Close this browser tab, run <code>run_dev.bat</code> from the project folder, then reopen SANKET AI.</p>}
-          {r.backendState==='online'&&r.perceptionState==='unavailable'&&<p className="readiness-help">Run <code>setup_windows.bat</code> once more. The updated launcher now uses the same virtual environment where MediaPipe is installed.</p>}
-          {r.perceptionState==='ready'&&r.modelState==='missing'&&<p className="readiness-help">The camera tracker is working. Use <b>Training studio</b> to record a few signs, then train the first real vocabulary.</p>}
+
+          {r.backendState==='offline'&&<p className="readiness-help">Close this browser tab and double-click <code>START_SANKET.bat</code>.</p>}
+          {r.backendState==='online'&&r.perceptionState==='unavailable'&&<p className="readiness-help">Double-click <code>START_SANKET.bat</code>; the launcher repairs the verified Holistic runtime automatically.</p>}
+          {r.modelIsBootstrap&&<p className="readiness-help">Active source: <b>{r.modelSource}</b>. Use Training Studio when you want a project-specific recognizer trained from your own consented data.</p>}
         </section>
+
+        <details className="vocabulary-card" open>
+          <summary><span><span className="section-label">Active vocabulary</span><strong>{liveSigns.length} supported signs</strong></span><span className="summary-caret">⌄</span></summary>
+          <div className="vocabulary-list">
+            {liveSigns.length
+              ?liveSigns.map(sign=><span key={sign}>{sign}</span>)
+              :<p>No live vocabulary reported.</p>}
+          </div>
+        </details>
       </aside>
     </div>
   </div>

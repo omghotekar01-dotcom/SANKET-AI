@@ -79,7 +79,7 @@ def signs():
         "model_backend": model.backend,
         "model_source": model.source,
         "model_is_bootstrap": model.is_bootstrap,
-        "planned_custom_vocabulary": PLANNED_DEMO_SIGNS,
+        "planned_custom_vocabulary": PLANNED_DEMO_SIGNS,\n        "supported_demo_vocabulary": PLANNED_DEMO_SIGNS,
         "claim": (
             "live_vocabulary is the exact active recognizer vocabulary. "
             "Bootstrap weights are external MIT-licensed weights, not SANKET-trained metrics."

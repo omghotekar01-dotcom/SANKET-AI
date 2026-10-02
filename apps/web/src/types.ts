@@ -36,6 +36,10 @@ export interface Health {
   version: string
   model_loaded: boolean
   model_version?: string | null
+  model_backend?: string
+  model_source?: string
+  model_is_bootstrap?: boolean
+  model_vocabulary_size?: number
   model_error?: string | null
   perception_available: boolean
   perception_reason?: string | null

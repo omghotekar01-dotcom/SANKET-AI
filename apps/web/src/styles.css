@@ -253,3 +253,16 @@ html[data-reduce-motion="1"] *,html[data-reduce-motion="1"] *::before,html[data-
   .collector-form>*{grid-column:1!important}
   .emergency-grid,.video-grid{grid-template-columns:1fr}
 }
+
+
+.model-provenance{display:flex;align-items:center;gap:10px;margin:-8px 0 14px;padding:10px 12px;border:1px solid #2e3846;background:#11161d;border-radius:10px;color:#9ea9b5;font-size:11px;line-height:1.5}
+.model-provenance-badge{flex:0 0 auto;border:1px solid #4a5d7a;background:#172033;color:#b9ccf4;border-radius:999px;padding:4px 8px;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.vocabulary-card{border:1px solid var(--line);background:var(--panel);border-radius:13px;overflow:hidden}
+.vocabulary-card summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px}
+.vocabulary-card summary::-webkit-details-marker{display:none}
+.vocabulary-card summary strong{display:block;margin-top:4px;font-size:15px}
+.summary-caret{color:#7d8792;font-size:15px}
+.vocabulary-list{border-top:1px solid #242a31;padding:10px;display:flex;flex-wrap:wrap;gap:6px;max-height:240px;overflow:auto}
+.vocabulary-list span{border:1px solid #2d343d;background:#0f1318;color:#b7c0ca;border-radius:999px;padding:5px 8px;font-size:9px}
+.vocabulary-list p{margin:5px;color:#7f8994;font-size:10px}
+.diagnostic-note{color:#929ca8;font-size:12px;line-height:1.6;margin:4px 16px 16px}

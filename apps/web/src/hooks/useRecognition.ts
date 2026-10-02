@@ -24,6 +24,10 @@ export function useRecognition(domain: string, collectorId?: string | null) {
   const [backendState,setBackendState] = useState<BackendState>('checking')
   const [perceptionState,setPerceptionState] = useState<CapabilityState>('unknown')
   const [modelState,setModelState] = useState<ModelState>('unknown')
+  const [modelBackend,setModelBackend] = useState('none')
+  const [modelSource,setModelSource] = useState('none')
+  const [modelIsBootstrap,setModelIsBootstrap] = useState(false)
+  const [modelVocabularySize,setModelVocabularySize] = useState(0)
   const [tracking,setTracking] = useState<TrackingInfo>(EMPTY_TRACKING)
   const [prediction,setPrediction] = useState<PredictionEvent | null>(null)
   const [transcript,setTranscript] = useState<TranscriptTurn[]>([])
@@ -31,11 +35,19 @@ export function useRecognition(domain: string, collectorId?: string | null) {
   const [landmarkLatency,setLandmarkLatency] = useState<number | null>(null)
   const [ttsEnabled,setTtsEnabled] = useState(true)
 
+  const applyModelMeta = useCallback((data:any) => {
+    setModelState(data?.model_loaded ? 'loaded' : 'missing')
+    setModelBackend(String(data?.model_backend || 'none'))
+    setModelSource(String(data?.model_source || 'none'))
+    setModelIsBootstrap(Boolean(data?.model_is_bootstrap))
+    setModelVocabularySize(Number(data?.model_vocabulary_size || 0))
+  },[])
+
   const applyHealth = useCallback((health:any) => {
     setBackendState('online')
     setPerceptionState(health?.perception_available ? 'ready' : 'unavailable')
-    setModelState(health?.model_loaded ? 'loaded' : 'missing')
-  },[])
+    applyModelMeta(health)
+  },[applyModelMeta])
 
   const refreshHealth = useCallback(async() => {
     try {
@@ -136,13 +148,20 @@ export function useRecognition(domain: string, collectorId?: string | null) {
       if (event.type==='ready') {
         setBackendState('online')
         setModelState(event.model_loaded ? 'loaded' : 'missing')
+        setModelBackend(String(event.model_backend || 'none'))
+        setModelSource(String(event.model_source || 'none'))
+        setModelIsBootstrap(Boolean(event.model_is_bootstrap))
+        setModelVocabularySize(Number(event.model_vocabulary_size || 0))
         setPerceptionState(event.perception_available ? 'ready' : 'unavailable')
+
         if (!event.perception_available) {
-          setMessage(event.perception_reason || 'Vision runtime is not ready. Run setup_windows.bat again.')
+          setMessage(event.perception_reason || 'Vision runtime is not ready. Run START_SANKET.bat again.')
         } else if (!event.model_loaded) {
-          setMessage('Vision is ready. Collect a few sign samples and train your first vocabulary to enable recognition.')
+          setMessage('Vision is ready, but no recognition model is loaded.')
+        } else if (event.model_is_bootstrap) {
+          setMessage(`Ready — verified bootstrap recognizer active (${event.model_vocabulary_size || 50} signs).`)
         } else {
-          setMessage('Ready — keep your hands and upper body visible.')
+          setMessage(`Ready — local SANKET recognizer active (${event.model_vocabulary_size || 0} signs).`)
         }
         return
       }
@@ -158,7 +177,7 @@ export function useRecognition(domain: string, collectorId?: string | null) {
 
       if (event.type==='model_unavailable') {
         setModelState('missing')
-        setMessage('Tracking is working. Train or load a sign model to turn landmarks into words.')
+        setMessage('Tracking is working, but no recognition model is available.')
         busyRef.current=false
         return
       }
@@ -191,7 +210,7 @@ export function useRecognition(domain: string, collectorId?: string | null) {
 
   useEffect(()=>{
     if (running) connectSocket()
-  },[collectorId]) // reconnect collector sessions with their new collector id
+  },[collectorId])
 
   useEffect(()=>{
     if (wsRef.current?.readyState===WebSocket.OPEN) {
@@ -230,7 +249,6 @@ export function useRecognition(domain: string, collectorId?: string | null) {
         const ctx=canvas.getContext('2d')
         if(!ctx)return
 
-        // Keep inference orientation unmirrored. Only the user's preview is mirrored in CSS.
         ctx.drawImage(video,0,0,384,216)
         busyRef.current=true
         canvas.toBlob(async blob=>{
@@ -293,6 +311,7 @@ export function useRecognition(domain: string, collectorId?: string | null) {
     videoRef,overlayRef,captureRef,
     running,start,stop,reset,reconnect,refreshHealth,
     socketState,backendState,perceptionState,modelState,
+    modelBackend,modelSource,modelIsBootstrap,modelVocabularySize,
     tracking,prediction,transcript,setTranscript,message,
     modelLoaded:modelState==='loaded',
     perceptionAvailable:perceptionState==='ready',
