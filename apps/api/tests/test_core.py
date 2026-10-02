@@ -66,6 +66,12 @@ def test_recognition_socket_ready():
         msg=ws.receive_json(); assert msg['type']=='ready'; assert 'model_loaded' in msg
         ws.send_json({'type':'ping','seq':7}); assert ws.receive_json()['seq']==7
 
+
 def test_metrics_is_explicit_when_missing():
     r=client.get('/api/metrics'); assert r.status_code==200; assert 'available' in r.json()
 
+
+def test_model_train_fails_honestly_without_dataset():
+    r=client.post('/api/model/train')
+    assert r.status_code == 400
+    assert 'Need at least' in r.text or 'insufficient' in r.text

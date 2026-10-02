@@ -1,17 +1,20 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+import json
+from pathlib import Path
+import subprocess
+import sys
+from uuid import uuid4
 
-from ..config import settings
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+
+from ..config import REPO_ROOT, settings
 from ..db.session import LocalStore
 from ..schemas import CollectorStartRequest, CollectorStopRequest, FeedbackRequest, TextToISLRequest
 from ..services.clip_service import ClipService
 from ..services.collector_service import CollectorService
 from ..services.context_service import DOMAINS
 from ..services.replay_service import SCENARIOS
-from pathlib import Path
-from uuid import uuid4
-import json
 
 router = APIRouter(prefix="/api")
 store = LocalStore(settings.db_path)
@@ -120,9 +123,12 @@ async def register_sign_clip(
     if settings.clip_registry.exists():
         entries = json.loads(settings.clip_registry.read_text(encoding="utf-8"))
     entry = {
-        "phrase": normalized, "mode": "verified_phrase" if verified else "unverified_local",
-        "file": relative, "source": source.strip() or "team-recorded",
-        "license_note": license_note.strip() or "Local recording", "verified": bool(verified),
+        "phrase": normalized,
+        "mode": "verified_phrase" if verified else "unverified_local",
+        "file": relative,
+        "source": source.strip() or "team-recorded",
+        "license_note": license_note.strip() or "Local recording",
+        "verified": bool(verified),
     }
     entries.append(entry)
     settings.clip_registry.write_text(json.dumps(entries, indent=2), encoding="utf-8")
@@ -148,3 +154,47 @@ def model_reload():
     from ..runtime import model
     loaded = model.reload()
     return {"loaded": loaded, "model_version": model.version, "error": model.load_error}
+
+
+@router.post("/model/train")
+def model_train():
+    """Train the fixed local baseline command and reload it.
+
+    This endpoint intentionally exposes no user-supplied command or path.
+    """
+    from ..runtime import model
+
+    command = [sys.executable, "-m", "ml.training.train_template"]
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=180,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise HTTPException(504, "Training exceeded the 3 minute local timeout.") from exc
+
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout or "Training failed.").strip()
+        raise HTTPException(400, detail[-3500:])
+
+    loaded = model.reload()
+    report_path = settings.model_dir / "evaluation.json"
+    report = None
+    if report_path.exists():
+        try:
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+        except Exception:
+            report = None
+
+    return {
+        "trained": True,
+        "loaded": loaded,
+        "model_version": model.version,
+        "model_error": model.load_error,
+        "evaluation": report,
+        "output": completed.stdout[-3500:],
+    }
