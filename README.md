@@ -7,91 +7,116 @@ SANKET AI is designed around **hands + facial/non-manual cues + upper-body pose 
 
 The complete research/specification system is preserved under `prompts/`. Start with `AGENTS.md` before changing architecture or claims.
 
+## Fastest Windows start
+
+Install these once:
+- 64-bit Python 3.11 or 3.12
+- Node.js 20+
+- Git
+
+Then double-click:
+
+```text
+START_SANKET.bat
+```
+
+That is now the normal launcher.
+
+On the first run it automatically:
+1. detects an incompatible/missing runtime,
+2. rebuilds `.venv`,
+3. installs the pinned compatible vision stack,
+4. installs frontend dependencies,
+5. builds the frontend,
+6. runs backend/ML tests,
+7. verifies MediaPipe Holistic,
+8. starts the FastAPI backend,
+9. waits for the API health check,
+10. starts Vite and opens the browser.
+
+On later runs it verifies the existing environment and starts immediately. The older `run_dev.bat` now forwards to the same one-click launcher.
+
+### Vision compatibility
+
+This project currently uses MediaPipe's legacy Holistic API because the feature schema/model pipeline was built around that landmark geometry. The compatible runtime is intentionally pinned to:
+
+- MediaPipe `0.10.21`
+- NumPy `1.26.4`
+- OpenCV contrib `4.11.0.86`
+
+Do not upgrade those individually without migrating the perception layer and retraining/evaluating the sign model.
+
 ## What is implemented
 
-- React + TypeScript assistive-product UI.
-- Live webcam preview with framing/signal-health overlay.
-- Local FastAPI recognition WebSocket with bounded frame flow.
-- Server-side MediaPipe Holistic adapter (optional dependency; Python 3.11/3.12 recommended).
+- Professional React + TypeScript live-video interface.
+- Live webcam preview with hands/body/face tracking status.
+- Local FastAPI recognition WebSocket with automatic reconnect.
+- Pinned MediaPipe Holistic perception runtime.
 - Versioned multimodal feature schema and temporal buffering.
 - Real finite-vocabulary temporal template baseline, not fake predictions.
 - Consent-based landmark dataset collection; raw video off by default.
-- Signer-aware train/validation/test splitting and honest limitations.
-- Calibration temperature + selective acceptance threshold + ambiguity/motion/tracking gates.
+- One-click local model training from the Training Studio.
+- Signer-aware train/validation/test splitting and explicit limitations.
+- Calibration + selective acceptance + ambiguity/motion/tracking gates.
 - `ACCEPTED`, `NEED_REPEAT`, `NO_SIGN`, `TRACKING_LOST` behavior.
 - Context domains that only rerank recognizer evidence.
 - ISL → text → browser TTS.
 - Text → verified ISL phrase clip registry with honest fallback.
-- Local verified-clip upload lab for team/community recordings.
+- Local verified-clip upload workflow.
 - Emergency communication, high contrast, larger text, reduced motion, ARIA live transcript and haptics capability detection.
 - WebRTC two-peer call/signaling prototype for same-network/two-tab demos.
 - Deterministic **labelled Demo Replay** fallback.
-- Diagnostics and model/evaluation endpoints.
-- Backend/ML automated tests.
+- Diagnostics and real evaluation endpoints.
+- GitHub CI for backend/ML tests, vision compatibility and production web build.
 
-## What cannot be truthfully bundled without your data
+## What still requires your real project data
 
-Two pieces require real project evidence rather than generated placeholders:
+Two pieces cannot be truthfully generated as placeholders:
 
-1. **A trained ISL model** — collect consented takes for the exact demo vocabulary/signers, then train/evaluate it.
-2. **Verified reverse-ISL videos** — record/validate your own clips or use material whose terms explicitly permit your use/redistribution.
+1. **A trained ISL vocabulary model** — collect consented takes for your final signs, then click **Train model now** in Training Studio.
+2. **Verified reverse-ISL videos** — record/validate your own clips or use assets whose terms permit your use/redistribution.
 
-Until these exist, SANKET AI visibly reports `model_loaded=false` and reverse output uses an honest fallback. Demo Replay is clearly labelled.
+Until a trained artifact exists, SANKET can still test camera + MediaPipe tracking, but it will correctly show that the sign model needs training.
 
-## Windows setup (recommended)
+## First live test
 
-Install Python **3.11**, Node.js 20+ and Git. Then:
+Double-click `START_SANKET.bat`, then open **Live interpreter**.
 
-```bat
-setup_windows.bat
-run_dev.bat
+Expected readiness:
+
+```text
+Local API      Connected
+Vision         MediaPipe ready
+Sign model     Needs training
+Tracking       —
 ```
 
-Manual setup:
+Press **Camera**. As you move, the Left / Right / Body / Face indicators should become active.
 
-```bat
-py -3.11 -m venv .venv
-.venv\Scripts\activate
-pip install -r apps\api\requirements-dev.txt
-pip install -r apps\api\requirements-vision.txt
-cd apps\web
-npm install
-cd ..\..
-python -m pytest apps\api\tests -q
-run_dev.bat
+## Train your first vocabulary
+
+Open **Training studio** and start with three signs such as:
+
+```text
+help
+doctor
+water
 ```
 
-Open `http://127.0.0.1:5173`. API docs are at `http://127.0.0.1:8000/docs`.
+Record multiple takes for each sign. For a meaningful signer-disjoint evaluation, repeat the same vocabulary with 3+ different signers. Then press:
 
-## Collect and train
-
-Use **Collect data** in the app. For useful evaluation, collect multiple takes per class from **3+ signers** if possible.
-
-```bat
-.venv\Scripts\activate
-python -m ml.training.train_template
-python -m ml.evaluation.report
+```text
+Train model now
 ```
 
-Then restart the backend or `POST /api/model/reload`.
-
-## Test
-
-```bash
-python -m pytest apps/api/tests -q
-cd apps/web
-npm run typecheck
-npm run build
-```
-
-For live camera testing also verify: camera permission denied/retry, low light, one hand out of frame, unsupported signs, backend restart, and Wi-Fi disconnected (except WebRTC between remote networks).
+The backend trains, evaluates, saves and reloads the local model automatically.
 
 ## Important limitations
 
-- The shipped recognizer architecture is **finite-vocabulary temporal recognition**, not unrestricted open-vocabulary continuous ISL sentence translation.
-- Context cannot invent a sentence unsupported by visual evidence.
-- Browser speech recognition is optional; typed input is the fallback.
-- Internet-wide WebRTC generally needs a tested TURN service; same-network/two-tab demo does not.
-- Emergency mode does not dispatch services.
+- The recognizer is **finite-vocabulary temporal recognition**, not unrestricted open-vocabulary continuous ISL sentence translation.
+- Context cannot invent meaning unsupported by visual evidence.
+- Browser speech recognition is optional; typed text remains the fallback.
+- Internet-wide WebRTC generally needs a tested TURN service; same-network/two-tab demo is the supported current path.
+- Emergency mode communicates urgent needs but does not dispatch emergency services.
 
 Read `docs/ARCHITECTURE.md`, `docs/ML_PIPELINE.md`, `docs/DATA_AND_LICENSES.md`, `docs/DEMO_GUIDE.md`, and `docs/PRIVACY_AND_ACCESSIBILITY.md` before the final demo.

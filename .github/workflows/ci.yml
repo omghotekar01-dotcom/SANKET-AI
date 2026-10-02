@@ -14,10 +14,14 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - name: Install backend dependencies
+      - name: Install backend and pinned vision runtime
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r apps/api/requirements-dev.txt
+          python -m pip install -r apps/api/requirements-vision.txt
+      - name: Verify MediaPipe Holistic compatibility
+        run: |
+          python -c "import mediapipe as mp, numpy as np, cv2; from mediapipe.python.solutions import holistic; assert mp.__version__=='0.10.21'; assert np.__version__=='1.26.4'; assert cv2.__version__.startswith('4.11.'); assert hasattr(holistic,'Holistic')"
       - name: Compile Python
         run: python -m compileall -q apps ml scripts
       - name: Run backend and ML tests
