@@ -7,16 +7,16 @@ from time import perf_counter
 import cv2
 import numpy as np
 
-# MediaPipe 0.10.x still calls MessageFactory.GetPrototype in a few generated
-# protobuf modules. Protobuf 6/7 removed that method, while TensorFlow 2.20
-# requires a newer protobuf. Restore the old method as a tiny compatibility
-# adapter before importing MediaPipe. It delegates to the supported
-# message_factory.GetMessageClass implementation.
+# MediaPipe 0.10.x still calls MessageFactory.GetPrototype in some generated
+# protobuf modules. TensorFlow 2.20 upgrades protobuf past the version where
+# that method existed. Restore the old API before importing MediaPipe.
 try:
     from google.protobuf import message_factory as _message_factory
+
     if not hasattr(_message_factory.MessageFactory, "GetPrototype"):
         def _get_prototype(self, descriptor):
             return _message_factory.GetMessageClass(descriptor)
+
         _message_factory.MessageFactory.GetPrototype = _get_prototype
 except Exception:
     pass
@@ -32,13 +32,9 @@ BOOTSTRAP_FACE_INDICES = (
 )
 
 try:
-    import mediapipe as mp  # type: ignore
-    from mediapipe.tasks.python import BaseOptions  # type: ignore
-    from mediapipe.tasks.python import vision as mv  # type: ignore
-except Exception:  # pragma: no cover
-    mp = None
-    BaseOptions = None
-    mv = None
+    from mediapipe.python.solutions import holistic as mp_holistic  # type: ignore
+except Exception:  # pragma: no cover - runtime dependency
+    mp_holistic = None
 
 
 @dataclass
@@ -51,35 +47,44 @@ class PerceptionResult:
 
 
 class HolisticLandmarkService:
-    """Run one Holistic Tasks pass and expose native + bootstrap feature vectors."""
+    """Stable MediaPipe Holistic perception for live webcam frames.
 
-    def __init__(self, model_asset_path: Path) -> None:
-        self.model_asset_path = Path(model_asset_path)
+    SANKET intentionally uses the legacy Solutions Holistic graph on Windows.
+    The newer Holistic Tasks graph can abort the entire Python process on some
+    Windows builds when a graph packet is empty. The Solutions API returns the
+    same landmark families (pose, face, left hand, right hand) without exposing
+    that fatal Tasks packet path.
+    """
+
+    def __init__(self, model_asset_path: Path | None = None) -> None:
+        self.model_asset_path = Path(model_asset_path) if model_asset_path else None
         self.available = False
         self.reason: str | None = None
         self._holistic = None
 
-        if mp is None or BaseOptions is None or mv is None:
-            self.reason = "MediaPipe Tasks runtime is unavailable. Run START_SANKET.bat."
-            return
-        if not self.model_asset_path.exists():
-            self.reason = "Holistic task asset is missing. Run START_SANKET.bat."
+        if mp_holistic is None:
+            self.reason = "MediaPipe Solutions Holistic is unavailable. Run START_SANKET.bat."
             return
 
         try:
-            options = mv.HolisticLandmarkerOptions(
-                base_options=BaseOptions(model_asset_path=str(self.model_asset_path)),
-                running_mode=mv.RunningMode.IMAGE,
-                min_face_detection_confidence=0.5,
-                min_face_landmarks_confidence=0.5,
-                min_pose_detection_confidence=0.5,
-                min_pose_landmarks_confidence=0.5,
-                min_hand_landmarks_confidence=0.5,
+            self._holistic = mp_holistic.Holistic(
+                static_image_mode=False,
+                model_complexity=1,
+                smooth_landmarks=True,
+                enable_segmentation=False,
+                refine_face_landmarks=False,
+                min_detection_confidence=0.5,
+                min_tracking_confidence=0.5,
             )
-            self._holistic = mv.HolisticLandmarker.create_from_options(options)
             self.available = True
         except Exception as exc:
-            self.reason = f"MediaPipe Holistic task failed to initialize: {exc}"
+            self.reason = f"MediaPipe Solutions Holistic failed to initialize: {exc}"
+
+    @staticmethod
+    def _landmark_list(container):
+        if container is None:
+            return []
+        return list(container.landmark)
 
     @staticmethod
     def _compact_points(landmarks, count: int, dims: int, indices=None) -> tuple[np.ndarray, bool]:
@@ -133,7 +138,7 @@ class HolisticLandmarkService:
         return points.flatten()
 
     def extract_jpeg(self, jpeg: bytes) -> PerceptionResult:
-        if not self.available or self._holistic is None or mp is None:
+        if not self.available or self._holistic is None:
             raise RuntimeError(self.reason or "perception unavailable")
 
         started = perf_counter()
@@ -143,13 +148,13 @@ class HolisticLandmarkService:
             raise ValueError("invalid JPEG frame")
 
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-        result = self._holistic.detect(mp_image)
+        rgb.flags.writeable = False
+        result = self._holistic.process(rgb)
 
-        left_lms = result.left_hand_landmarks
-        right_lms = result.right_hand_landmarks
-        pose_lms = result.pose_landmarks
-        face_lms = result.face_landmarks
+        left_lms = self._landmark_list(result.left_hand_landmarks)
+        right_lms = self._landmark_list(result.right_hand_landmarks)
+        pose_lms = self._landmark_list(result.pose_landmarks)
+        face_lms = self._landmark_list(result.face_landmarks)
 
         left, has_left = self._compact_points(left_lms, 21, 3)
         right, has_right = self._compact_points(right_lms, 21, 3)
@@ -157,7 +162,7 @@ class HolisticLandmarkService:
         face, has_face = self._compact_points(face_lms, len(FACE_INDICES), 3, FACE_INDICES)
 
         origin_x, origin_y, scale = 0.5, 0.5, 0.35
-        if pose_lms and len(pose_lms) > 12:
+        if len(pose_lms) > 12:
             ls = pose_lms[11]
             rs = pose_lms[12]
             origin_x = (ls.x + rs.x) / 2.0
@@ -219,3 +224,9 @@ class HolisticLandmarkService:
             [round(float(landmarks[i].x), 4), round(float(landmarks[i].y), 4)]
             for i in picks
         ]
+
+    def close(self) -> None:
+        if self._holistic is not None:
+            close = getattr(self._holistic, "close", None)
+            if callable(close):
+                close()

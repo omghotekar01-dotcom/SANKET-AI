@@ -65,11 +65,8 @@ echo [5/10] Downloading and verifying 50-word model assets...
 python scripts\install_bootstrap.py
 if errorlevel 1 goto :model_fail
 
-echo [6/10] Verifying camera + recognition models...
-python -c "import numpy as np, cv2; from apps.api.app.services.landmark_service import mp,mv; assert mp is not None and mp.__version__=='0.10.21'; assert np.__version__=='1.26.4'; assert cv2.__version__.startswith('4.11.'); assert mv is not None and hasattr(mv,'HolisticLandmarker'); print('Vision runtime: OK')"
-if errorlevel 1 goto :vision_fail
-
-python -c "from pathlib import Path; from mediapipe.tasks.python import vision as mv; from apps.api.app.services.bootstrap_model import BootstrapKerasModel; assert hasattr(mv,'HolisticLandmarker'); m=BootstrapKerasModel(Path('ml/artifacts/bootstrap-50')); assert m.loaded, m.load_error; assert len(m.labels)==50; print('Combined vision + 50-word BiLSTM runtime: OK -',m.version)"
+echo [6/10] Processing a real frame through MediaPipe + loading recognition model...
+python scripts\smoke_live_runtime.py
 if errorlevel 1 goto :model_fail
 
 echo [7/10] Installing web dependencies...
@@ -121,7 +118,7 @@ exit /b %EXIT_CODE%
 
 :vision_fail
 echo.
-echo [ERROR] MediaPipe Holistic runtime could not be created.
+echo [ERROR] MediaPipe Solutions Holistic runtime could not be created.
 echo Expected: MediaPipe 0.10.21 + NumPy 1.26.4 + OpenCV 4.11.
 goto :fail
 

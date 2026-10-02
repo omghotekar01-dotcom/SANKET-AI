@@ -2,7 +2,8 @@ from .config import settings
 from .services.hybrid_model import HybridRecognitionModel
 from .services.landmark_service import HolisticLandmarkService
 
-perception = HolisticLandmarkService(settings.bootstrap_dir / "holistic_landmarker.task")
+# The legacy Solutions Holistic graph does not require an external .task model.
+perception = HolisticLandmarkService()
 model = HybridRecognitionModel(
     settings.model_dir,
     settings.bootstrap_dir,

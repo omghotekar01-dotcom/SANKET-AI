@@ -19,8 +19,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r apps/api/requirements-dev.txt
           python -m pip install -r apps/api/requirements-vision.txt
-      - name: Install Holistic task asset
-        run: python scripts/install_holistic_task.py
       - name: Compile Python
         run: python -m compileall -q apps ml scripts
       - name: Run backend and ML tests
@@ -42,9 +40,8 @@ jobs:
           python -m pip install -r apps/api/requirements-bootstrap.txt
       - name: Download verified bootstrap assets
         run: python scripts/install_bootstrap.py
-      - name: Load Holistic Tasks and 50-word Keras recognizer together
-        run: |
-          python -c "from pathlib import Path; from apps.api.app.services.landmark_service import mv; from apps.api.app.services.bootstrap_model import BootstrapKerasModel; assert mv is not None and hasattr(mv,'HolisticLandmarker'); m=BootstrapKerasModel(Path('ml/artifacts/bootstrap-50')); assert m.loaded, m.load_error; assert len(m.labels)==50; print(m.version, len(m.labels))"
+      - name: Process a real frame and load the 50-word recognizer
+        run: python scripts/smoke_live_runtime.py
 
   web:
     runs-on: ubuntu-latest

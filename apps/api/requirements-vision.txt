@@ -1,6 +1,8 @@
-# SANKET currently uses the legacy MediaPipe Holistic Python API
-# (mediapipe.python.solutions.holistic). Newer MediaPipe releases removed
-# that API, so this version is intentionally pinned until the project moves
-# to the Tasks API and retrains against its landmark geometry.
+# SANKET uses MediaPipe 0.10.21's legacy Solutions Holistic graph for
+# live perception. This avoids the Holistic Tasks native packet crash observed
+# on Windows while preserving pose, face and both-hand landmarks.
+#
+# TensorFlow 2.20 may upgrade protobuf beyond MediaPipe's declared range.
+# landmark_service.py installs a narrow MessageFactory compatibility adapter
+# before importing MediaPipe.
 mediapipe==0.10.21
-protobuf>=4.25.3,<5

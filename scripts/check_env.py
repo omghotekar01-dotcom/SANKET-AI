@@ -71,11 +71,6 @@ def main() -> int:
     print("ml-dtypes    ", ml_dtypes_version or "MISSING")
     ok &= bool(ml_dtypes_version)
 
-    holistic_path = BOOTSTRAP_DIR / "holistic_landmarker.task"
-    holistic_ok = holistic_path.exists() and holistic_path.stat().st_size == 13_683_609
-    print("holistic task", "OK" if holistic_ok else "MISSING/INVALID")
-    ok &= holistic_ok
-
     bootstrap_model = BOOTSTRAP_DIR / "isl_model_solo.keras"
     bootstrap_manifest = BOOTSTRAP_DIR / "manifest.json"
     bootstrap_ok = bootstrap_model.exists() and bootstrap_model.stat().st_size == 9_783_895
@@ -103,12 +98,17 @@ def main() -> int:
         ok = False
 
     try:
-        from apps.api.app.services.landmark_service import mv
-        task_api_ok = bool(mv is not None and hasattr(mv, "HolisticLandmarker"))
-    except Exception:
-        task_api_ok = False
-    print("holistic API ", "OK" if task_api_ok else "MISSING/INCOMPATIBLE")
-    ok &= task_api_ok
+        from apps.api.app.services.landmark_service import HolisticLandmarkService, mp_holistic
+        holistic_api_ok = bool(mp_holistic is not None and hasattr(mp_holistic, "Holistic"))
+        perception = HolisticLandmarkService()
+        holistic_runtime_ok = perception.available
+        print("holistic API ", "OK - Solutions Holistic" if holistic_api_ok else "MISSING/INCOMPATIBLE")
+        print("vision runtime", "OK" if holistic_runtime_ok else f"ERROR - {perception.reason}")
+        ok &= holistic_api_ok and holistic_runtime_ok
+        perception.close()
+    except Exception as exc:
+        print("holistic API  ERROR", exc)
+        ok = False
 
     for exe in ["node", "npm"]:
         path = shutil.which(exe)
