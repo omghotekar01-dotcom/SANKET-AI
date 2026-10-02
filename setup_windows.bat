@@ -57,10 +57,7 @@ echo [3/10] Installing pinned MediaPipe runtime...
 python -m pip install -r apps\api\requirements-vision.txt
 if errorlevel 1 goto :vision_fail
 
-echo [4/10] Installing coherent 50-word recognizer runtime...
-REM MediaPipe installs JAX as an optional dependency; SANKET does not use JAX.
-REM Remove it before TensorFlow so ml-dtypes/protobuf can remain compatible.
-python -m pip uninstall -y jax jaxlib >nul 2>nul
+echo [4/10] Installing 50-word recognizer runtime...
 python -m pip install -r apps\api\requirements-bootstrap.txt
 if errorlevel 1 goto :model_fail
 
@@ -69,7 +66,7 @@ python scripts\install_bootstrap.py
 if errorlevel 1 goto :model_fail
 
 echo [6/10] Verifying camera + recognition models...
-python -c "import mediapipe as mp, numpy as np, cv2; from mediapipe.tasks.python import vision as mv; assert mp.__version__=='0.10.21'; assert np.__version__=='1.26.4'; assert cv2.__version__.startswith('4.11.'); assert hasattr(mv,'HolisticLandmarker'); print('Vision runtime: OK')"
+python -c "import numpy as np, cv2; from apps.api.app.services.landmark_service import mp,mv; assert mp is not None and mp.__version__=='0.10.21'; assert np.__version__=='1.26.4'; assert cv2.__version__.startswith('4.11.'); assert mv is not None and hasattr(mv,'HolisticLandmarker'); print('Vision runtime: OK')"
 if errorlevel 1 goto :vision_fail
 
 python -c "from pathlib import Path; from mediapipe.tasks.python import vision as mv; from apps.api.app.services.bootstrap_model import BootstrapKerasModel; assert hasattr(mv,'HolisticLandmarker'); m=BootstrapKerasModel(Path('ml/artifacts/bootstrap-50')); assert m.loaded, m.load_error; assert len(m.labels)==50; print('Combined vision + 50-word BiLSTM runtime: OK -',m.version)"

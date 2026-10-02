@@ -7,6 +7,20 @@ from time import perf_counter
 import cv2
 import numpy as np
 
+# MediaPipe 0.10.x still calls MessageFactory.GetPrototype in a few generated
+# protobuf modules. Protobuf 6/7 removed that method, while TensorFlow 2.20
+# requires a newer protobuf. Restore the old method as a tiny compatibility
+# adapter before importing MediaPipe. It delegates to the supported
+# message_factory.GetMessageClass implementation.
+try:
+    from google.protobuf import message_factory as _message_factory
+    if not hasattr(_message_factory.MessageFactory, "GetPrototype"):
+        def _get_prototype(self, descriptor):
+            return _message_factory.GetMessageClass(descriptor)
+        _message_factory.MessageFactory.GetPrototype = _get_prototype
+except Exception:
+    pass
+
 from .feature_schema import FACE_INDICES, POSE_INDICES, SCHEMA
 
 BOOTSTRAP_FACE_INDICES = (

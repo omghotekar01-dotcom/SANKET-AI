@@ -55,30 +55,21 @@ def main() -> int:
     ok &= mediapipe_ok
 
     tensorflow_version = _version("tensorflow")
-    tf_ok = tensorflow_version == "2.17.1"
+    tf_ok = tensorflow_version == "2.20.0"
     print("tensorflow  ", f"{'OK' if tf_ok else 'MISSING/INCOMPATIBLE'} - {tensorflow_version}")
     ok &= tf_ok
 
     keras_version = _version("keras")
-    keras_ok = keras_version == "3.5.0"
-    print("keras        ", f"{'OK' if keras_ok else 'INCOMPATIBLE'} - {keras_version}")
-    ok &= keras_ok
+    print("keras        ", keras_version or "MISSING")
+    ok &= bool(keras_version)
 
     protobuf_version = _version("protobuf")
-    protobuf_ok = protobuf_version == "4.25.9"
-    print("protobuf     ", f"{'OK' if protobuf_ok else 'INCOMPATIBLE'} - {protobuf_version}")
-    ok &= protobuf_ok
+    print("protobuf     ", protobuf_version or "MISSING")
+    ok &= bool(protobuf_version)
 
     ml_dtypes_version = _version("ml-dtypes")
-    ml_dtypes_ok = ml_dtypes_version == "0.4.1"
-    print("ml-dtypes    ", f"{'OK' if ml_dtypes_ok else 'INCOMPATIBLE'} - {ml_dtypes_version}")
-    ok &= ml_dtypes_ok
-
-    jax_version = _version("jax")
-    jaxlib_version = _version("jaxlib")
-    jax_ok = jax_version is None and jaxlib_version is None
-    print("jax          ", "ABSENT - OK" if jax_ok else f"UNEXPECTED - jax={jax_version} jaxlib={jaxlib_version}")
-    ok &= jax_ok
+    print("ml-dtypes    ", ml_dtypes_version or "MISSING")
+    ok &= bool(ml_dtypes_version)
 
     holistic_path = BOOTSTRAP_DIR / "holistic_landmarker.task"
     holistic_ok = holistic_path.exists() and holistic_path.stat().st_size == 13_683_609
@@ -112,8 +103,8 @@ def main() -> int:
         ok = False
 
     try:
-        from mediapipe.tasks.python import vision as mv
-        task_api_ok = hasattr(mv, "HolisticLandmarker")
+        from apps.api.app.services.landmark_service import mv
+        task_api_ok = bool(mv is not None and hasattr(mv, "HolisticLandmarker"))
     except Exception:
         task_api_ok = False
     print("holistic API ", "OK" if task_api_ok else "MISSING/INCOMPATIBLE")
