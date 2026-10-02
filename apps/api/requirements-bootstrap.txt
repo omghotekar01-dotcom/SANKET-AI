@@ -1,7 +1,5 @@
 # Runtime for the MIT-licensed 50-word bootstrap BiLSTM.
-# The upstream model was trained with tensorflow.keras. Pin Keras to the
-# TensorFlow 2.16 generation; newer Keras releases require newer ml-dtypes
-# float8 types and cannot deserialize this artifact reliably.
-tensorflow==2.16.1
-keras==3.3.3
-ml-dtypes==0.3.2
+# Use the newer TensorFlow/Keras serialization generation used by the
+# upstream .keras artifact. TensorFlow 2.20 also uses modern ml-dtypes,
+# which coexists with MediaPipe's optional JAX dependency.
+tensorflow==2.20.0

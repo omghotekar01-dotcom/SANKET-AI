@@ -40,7 +40,6 @@ jobs:
           python -m pip install -r apps/api/requirements-dev.txt
           python -m pip install -r apps/api/requirements-vision.txt
           python -m pip install -r apps/api/requirements-bootstrap.txt
-          python -m pip uninstall -y jax jaxlib
       - name: Download verified bootstrap assets
         run: python scripts/install_bootstrap.py
       - name: Load Holistic Tasks and 50-word Keras recognizer together

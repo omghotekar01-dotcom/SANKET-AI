@@ -60,9 +60,6 @@ if errorlevel 1 goto :vision_fail
 echo [4/10] Installing 50-word recognizer runtime...
 python -m pip install -r apps\api\requirements-bootstrap.txt
 if errorlevel 1 goto :model_fail
-REM MediaPipe declares JAX for optional tooling, but SANKET's Holistic Tasks path does not use it.
-REM JAX 0.7 conflicts with TensorFlow 2.16's pinned ml-dtypes, so remove it from this runtime.
-python -m pip uninstall -y jax jaxlib >nul 2>nul
 
 echo [5/10] Downloading and verifying 50-word model assets...
 python scripts\install_bootstrap.py
