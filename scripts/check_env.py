@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VISION_DIR = ROOT / "ml" / "artifacts" / "bootstrap-50"
+BOOTSTRAP_DIR = ROOT / "ml" / "artifacts" / "bootstrap-50"
 LOCAL_MODEL = ROOT / "ml" / "artifacts" / "demo-v1"
 
 
@@ -20,14 +20,13 @@ def _version(name: str) -> str | None:
 
 
 def main() -> int:
-    print("SANKET AI runtime check")
+    print("SANKET AI full runtime check")
     print("Python:", sys.version.split()[0], platform.platform())
     ok = True
 
     if sys.version_info[:2] not in {(3, 11), (3, 12)}:
         print("python       INCOMPATIBLE - use Python 3.11 or 3.12")
         ok = False
-
     if platform.architecture()[0] != "64bit":
         print("python       INCOMPATIBLE - 64-bit Python is required")
         ok = False
@@ -52,10 +51,28 @@ def main() -> int:
     print("mediapipe   ", f"{'OK' if mediapipe_ok else 'INCOMPATIBLE'} - {mediapipe_version}")
     ok &= mediapipe_ok
 
-    holistic_path = VISION_DIR / "holistic_landmarker.task"
-    holistic_ok = holistic_path.exists() and holistic_path.stat().st_size >= 10_000_000
-    print("holistic task", "OK" if holistic_ok else "MISSING")
+    tensorflow_version = _version("tensorflow")
+    tf_ok = tensorflow_version == "2.16.1"
+    print("tensorflow  ", f"{'OK' if tf_ok else 'MISSING/INCOMPATIBLE'} - {tensorflow_version}")
+    ok &= tf_ok
+
+    holistic_path = BOOTSTRAP_DIR / "holistic_landmarker.task"
+    holistic_ok = holistic_path.exists() and holistic_path.stat().st_size == 13_683_609
+    print("holistic task", "OK" if holistic_ok else "MISSING/INVALID")
     ok &= holistic_ok
+
+    bootstrap_model = BOOTSTRAP_DIR / "isl_model_solo.keras"
+    bootstrap_manifest = BOOTSTRAP_DIR / "manifest.json"
+    bootstrap_ok = bootstrap_model.exists() and bootstrap_model.stat().st_size == 9_783_895
+    labels_ok = False
+    if bootstrap_manifest.exists():
+        try:
+            manifest = json.loads(bootstrap_manifest.read_text(encoding="utf-8"))
+            labels_ok = len(manifest.get("labels", [])) == 50
+        except Exception:
+            labels_ok = False
+    print("50-word model", "OK" if bootstrap_ok and labels_ok else "MISSING/INVALID")
+    ok &= bootstrap_ok and labels_ok
 
     try:
         from mediapipe.tasks.python import vision as mv
@@ -74,22 +91,21 @@ def main() -> int:
     print("web deps     ", "OK" if node_modules.exists() else "MISSING")
     ok &= node_modules.exists()
 
-    manifest_path = LOCAL_MODEL / "manifest.json"
-    model_path = LOCAL_MODEL / "model.npz"
-    if manifest_path.exists() and model_path.exists():
+    local_manifest = LOCAL_MODEL / "manifest.json"
+    local_path = LOCAL_MODEL / "model.npz"
+    if local_manifest.exists() and local_path.exists():
         try:
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest = json.loads(local_manifest.read_text(encoding="utf-8"))
             print(
-                "sign model   ",
-                f"OK - {manifest.get('model_version')} / {len(manifest.get('labels', []))} classes",
+                "local model  ",
+                f"PRESENT - {manifest.get('model_version')} / {len(manifest.get('labels', []))} classes / "
+                f"origin={manifest.get('training_origin', 'unknown')}",
             )
         except Exception:
-            print("sign model   PRESENT but manifest is unreadable")
-            ok = False
+            print("local model   PRESENT but manifest unreadable")
     else:
-        print("sign model   NOT INSTALLED YET - camera tracking still works")
+        print("local model   none - bootstrap will be used")
 
-    print("external ML  optional; not required for startup")
     print("Raw video storage default: OFF")
     return 0 if ok else 1
 

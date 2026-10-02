@@ -14,25 +14,37 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-
       - name: Install backend and vision runtime
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r apps/api/requirements-dev.txt
           python -m pip install -r apps/api/requirements-vision.txt
-
-      - name: Install official Holistic task asset
+      - name: Install Holistic task asset
         run: python scripts/install_holistic_task.py
-
-      - name: Verify Holistic Tasks runtime
-        run: |
-          python -c "import mediapipe as mp; from mediapipe.tasks.python import vision as mv; assert mp.__version__=='0.10.21'; assert hasattr(mv,'HolisticLandmarker')"
-
       - name: Compile Python
         run: python -m compileall -q apps ml scripts
-
       - name: Run backend and ML tests
         run: python -m pytest apps/api/tests -q
+
+  bootstrap-recognizer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install pinned recognition stack
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r apps/api/requirements-dev.txt
+          python -m pip install -r apps/api/requirements-vision.txt
+          python -m pip install -r apps/api/requirements-bootstrap.txt
+      - name: Download verified bootstrap assets
+        run: python scripts/install_bootstrap.py
+      - name: Load 50-word Keras recognizer
+        run: |
+          python -c "from pathlib import Path; from apps.api.app.services.bootstrap_model import BootstrapKerasModel; m=BootstrapKerasModel(Path('ml/artifacts/bootstrap-50')); assert m.loaded, m.load_error; assert len(m.labels)==50; print(m.version, len(m.labels))"
 
   web:
     runs-on: ubuntu-latest
