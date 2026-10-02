@@ -12,6 +12,10 @@ export function Interpreter() {
   const [liveSigns,setLiveSigns]=useState<string[]>([])
   const [safeActions,setSafeActions]=useState(false)
   const [actionNotice,setActionNotice]=useState('')
+  const [testTarget,setTestTarget]=useState('')
+  const [testState,setTestState]=useState<'idle'|'waiting'|'passed'|'different'>('idle')
+  const [testDetected,setTestDetected]=useState('')
+  const [testConfidence,setTestConfidence]=useState<number|null>(null)
   const [demoActive,setDemoActive]=useState(false)
   const [demoState,setDemoState]=useState('')
   const r=useRecognition(domain)
@@ -21,9 +25,25 @@ export function Interpreter() {
   useEffect(()=>{
     if(r.backendState!=='online')return
     api<any>('/api/signs')
-      .then(data=>setLiveSigns(Array.isArray(data.live_vocabulary)?data.live_vocabulary:[]))
+      .then(data=>{
+        const signs=Array.isArray(data.live_vocabulary)?data.live_vocabulary:[]
+        setLiveSigns(signs)
+        if(!testTarget && signs.length){
+          const hello=signs.find((s:string)=>s.toLowerCase()==='hello')
+          setTestTarget(hello || signs[0])
+        }
+      })
       .catch(()=>setLiveSigns([]))
   },[r.backendState,r.modelBackend,r.modelVocabularySize])
+
+  useEffect(()=>{
+    if(!testTarget || r.prediction?.state!=='ACCEPTED' || !r.prediction.display_text)return
+    const normalize=(value:string)=>value.trim().toLowerCase().replaceAll('_',' ').replace(/\s+/g,' ')
+    const detected=r.prediction.display_text
+    setTestDetected(detected)
+    setTestConfidence(r.prediction.confidence)
+    setTestState(normalize(detected)===normalize(testTarget)?'passed':'different')
+  },[r.prediction,testTarget])
 
   useEffect(()=>{
     if(!safeActions||r.prediction?.state!=='ACCEPTED'||!r.prediction.label)return
@@ -102,7 +122,7 @@ export function Interpreter() {
 
     {r.modelIsBootstrap&&<div className="model-provenance">
       <span className="model-provenance-badge">Bootstrap model</span>
-      <span>50-word temporal ISL recognizer is active. These MIT-licensed external weights are a starting model; a SANKET-trained local model automatically replaces them when you train one.</span>
+      <span>50-word temporal ISL recognizer is active. These MIT-licensed external weights are a starting model; a SANKET-trained local model replaces them only after its held-out evaluation clears the project quality gate.</span>
     </div>}
 
     <div className="studio-layout">
@@ -150,6 +170,48 @@ export function Interpreter() {
           {r.backendState==='offline'&&<p className="readiness-help">Close this browser tab and double-click <code>START_SANKET.bat</code>.</p>}
           {r.backendState==='online'&&r.perceptionState==='unavailable'&&<p className="readiness-help">Double-click <code>START_SANKET.bat</code>; the launcher repairs the verified Holistic runtime automatically.</p>}
           {r.modelIsBootstrap&&<p className="readiness-help">Active source: <b>{r.modelSource}</b>. Use Training Studio when you want a project-specific recognizer trained from your own consented data.</p>}
+        </section>
+
+
+        <section className="recognizer-test-card">
+          <div className="panel-head">
+            <div><span className="section-label">Guided test</span><h2>Recognizer test</h2></div>
+            <button className="text-button" onClick={()=>{
+              if(!liveSigns.length)return
+              const current=Math.max(0,liveSigns.indexOf(testTarget))
+              const next=liveSigns[(current+1)%liveSigns.length]
+              setTestTarget(next)
+              setTestState('idle')
+              setTestDetected('')
+              setTestConfidence(null)
+            }}>Next</button>
+          </div>
+          <div className="recognizer-test-body">
+            <label>Target sign
+              <select value={testTarget} onChange={e=>{
+                setTestTarget(e.target.value)
+                setTestState('idle')
+                setTestDetected('')
+                setTestConfidence(null)
+              }}>
+                {liveSigns.map(sign=><option key={sign} value={sign}>{sign}</option>)}
+              </select>
+            </label>
+            <div className="test-target">
+              <span>Perform</span>
+              <strong>{testTarget || '—'}</strong>
+            </div>
+            <button className="secondary full-width-test" disabled={!testTarget||r.modelState!=='loaded'} onClick={()=>{
+              setTestState('waiting')
+              setTestDetected('')
+              setTestConfidence(null)
+              if(!r.running)void r.start()
+            }}>{r.running?'Reset test':'Start camera & test'}</button>
+            {testState==='waiting'&&<div className="test-result waiting"><i/>Waiting for an accepted sign…</div>}
+            {testState==='passed'&&<div className="test-result passed"><i/>PASS · {testDetected}{testConfidence!==null?` · ${Math.round(testConfidence*100)}%`:''}</div>}
+            {testState==='different'&&<div className="test-result different"><i/>Detected {testDetected}{testConfidence!==null?` · ${Math.round(testConfidence*100)}%`:''}. Try {testTarget} again.</div>}
+            <p className="test-help">This checks the active isolated-sign recognizer only. Hold a neutral pose briefly before and after the sign and keep your upper body visible.</p>
+          </div>
         </section>
 
         <details className="vocabulary-card" open>

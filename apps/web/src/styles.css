@@ -266,3 +266,19 @@ html[data-reduce-motion="1"] *,html[data-reduce-motion="1"] *::before,html[data-
 .vocabulary-list span{border:1px solid #2d343d;background:#0f1318;color:#b7c0ca;border-radius:999px;padding:5px 8px;font-size:9px}
 .vocabulary-list p{margin:5px;color:#7f8994;font-size:10px}
 .diagnostic-note{color:#929ca8;font-size:12px;line-height:1.6;margin:4px 16px 16px}
+
+.recognizer-test-card{border:1px solid var(--line);background:var(--panel);border-radius:13px;overflow:hidden}
+.recognizer-test-body{padding:0 14px 14px}
+.recognizer-test-body label{margin-bottom:10px}
+.test-target{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid #2b333d;background:#0e1318;border-radius:10px;margin:10px 0}
+.test-target span{font-size:10px;color:#7f8995;text-transform:uppercase;letter-spacing:.08em;font-weight:800}
+.test-target strong{font-size:18px;letter-spacing:-.02em}
+.full-width-test{width:100%;margin-top:2px}
+.test-result{display:flex;align-items:center;gap:8px;margin-top:10px;padding:9px 10px;border-radius:9px;border:1px solid #2b333d;background:#10151b;color:#aab4bf;font-size:10px;font-weight:700}
+.test-result i{width:7px;height:7px;border-radius:50%;background:#6f7984;flex:0 0 auto}
+.test-result.waiting i{background:var(--amber)}
+.test-result.passed{border-color:#2d5a47;background:#101b16;color:#a9dfc1}
+.test-result.passed i{background:var(--green)}
+.test-result.different{border-color:#5e4c2f;background:#1d1810;color:#e2c889}
+.test-result.different i{background:var(--amber)}
+.test-help{margin:10px 1px 0;color:#7d8793;font-size:9px;line-height:1.55}

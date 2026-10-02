@@ -108,7 +108,8 @@ def write_manifest() -> None:
         "feature_schema": "bootstrap-holistic-378-v1",
         "claim_note": (
             "External bootstrap weights. Not trained or evaluated by SANKET AI. "
-            "A locally trained SANKET artifact takes priority when present."
+            "A locally trained SANKET artifact takes priority only after its held-out "
+            "evaluation clears the SANKET quality gate."
         ),
         "assets": ASSETS,
     }
