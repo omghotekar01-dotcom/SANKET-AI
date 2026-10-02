@@ -13,12 +13,12 @@
     "thank_you",
     "water"
   ],
-  "temperature": 0.2,
-  "accept_threshold": 0.72,
-  "margin_threshold": 0.12,
+  "temperature": 0.08,
+  "accept_threshold": 0.14,
+  "margin_threshold": 0.0978,
   "motion_threshold": 0.0015,
   "tracking_threshold": 0.48,
-  "trained_at": "2026-10-02T07:29:14.720188+00:00",
+  "trained_at": "2026-10-02T07:34:11.861531+00:00",
   "dataset_samples": 55,
   "split": {
     "mode": "stratified_sample_split_no_signer_claim",

@@ -18,9 +18,10 @@ Backend: temporal template baseline
 Vocabulary: friend, hello, hospital, market, school, sit, thank_you, water  
 Samples: 55  
 Split mode: stratified_sample_split_no_signer_claim  
-Test top-1: 0.625  
-Test macro F1: 0.000  
-Selective accepted accuracy: 0.000 at coverage 0.000.
+Acceptance threshold: 0.140  
+Margin threshold: 0.098  
+Test top-1: 0.500  
+Selective accepted accuracy: 0.500 at coverage 0.750.
 
 ## Limitations
-This is a finite-vocabulary landmark model. It is not open-vocabulary continuous ISL translation. Metrics are valid only for the recorded data and split documented in evaluation.json.
+This is a finite-vocabulary landmark model. It is not open-vocabulary continuous ISL translation. Metrics are valid only for the data and split documented in evaluation.json.
