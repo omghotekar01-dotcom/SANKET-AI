@@ -3,65 +3,59 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .temporal_model import TemporalTemplateModel
+import numpy as np
+
+from .feature_schema import resample_sequence
+from .temporal_model import ModelPrediction
 
 CORE_EXTENSION_TARGETS = {"yes", "no", "help", "water", "where"}
 
 
 class CoreExtensionModel:
-    """Quality-gated SANKET model for high-value core signs absent from bootstrap."""
+    """Quality-gated five-sign BiLSTM trained by SANKET from public ISL video."""
 
-    MIN_TOP1 = 0.45
-    MIN_MACRO_F1 = 0.35
-    MIN_ACCEPTED_ACCURACY = 0.60
-    MIN_COVERAGE = 0.30
-    MIN_TEST_SAMPLES_PER_CLASS = 1
+    MIN_TOP1 = 0.55
+    MIN_MACRO_F1 = 0.50
+    MIN_ACCEPTED_ACCURACY = 0.75
+    MIN_COVERAGE = 0.40
+    MIN_TEST_SAMPLES_PER_CLASS = 2
 
     is_bootstrap = False
     input_schema = "native"
 
     def __init__(self, model_dir: Path):
         self.model_dir = Path(model_dir)
-        self.model = TemporalTemplateModel(self.model_dir)
+        self.model_path = self.model_dir / "model.keras"
+        self.norm_path = self.model_dir / "normalization.npz"
+        self.manifest_path = self.model_dir / "manifest.json"
+        self.report_path = self.model_dir / "evaluation.json"
         self.loaded = False
         self.load_error: str | None = None
         self.quality_reason = "not evaluated"
+        self._model = None
+        self._mean: np.ndarray | None = None
+        self._std: np.ndarray | None = None
+        self._labels: list[str] = []
+        self._manifest: dict = {}
         self.reload()
 
-    def reload(self) -> bool:
-        self.model.reload()
-        self.loaded = False
-        self.load_error = self.model.load_error
-        if not self.model.loaded:
-            self.quality_reason = self.model.load_error or "artifact unavailable"
-            return False
-
-        manifest_path = self.model_dir / "manifest.json"
-        report_path = self.model_dir / "evaluation.json"
-        try:
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            report = json.loads(report_path.read_text(encoding="utf-8"))
-            origin = str(manifest.get("training_origin", ""))
-            labels = {str(x) for x in manifest.get("labels", [])}
-            test = report.get("test") or {}
-            top1 = float(test.get("top1_accuracy", 0.0))
-            macro_f1 = float(test.get("macro_f1", 0.0))
-            accepted = float(test.get("accepted_accuracy", 0.0))
-            coverage = float(test.get("coverage", 0.0))
-            samples = int(test.get("samples", 0))
-        except Exception as exc:
-            self.load_error = f"Core extension evaluation unreadable: {exc}"
-            self.quality_reason = self.load_error
-            return False
-
+    def _check_quality(self, manifest: dict, report: dict) -> tuple[bool, str]:
+        labels = {str(x) for x in manifest.get("labels", [])}
+        test = report.get("test") or {}
+        top1 = float(test.get("top1_accuracy", 0.0))
+        macro_f1 = float(test.get("macro_f1", 0.0))
+        accepted = float(test.get("accepted_accuracy", 0.0))
+        coverage = float(test.get("coverage", 0.0))
+        samples = int(test.get("samples", 0))
         problems: list[str] = []
-        if origin != "public_core_extension":
-            problems.append(f"unexpected origin {origin!r}")
-        if not labels or not labels.issubset(CORE_EXTENSION_TARGETS):
+
+        if manifest.get("training_origin") != "public_core_extension_bilstm":
+            problems.append("unexpected training origin")
+        if labels != CORE_EXTENSION_TARGETS:
             problems.append(f"unexpected labels {sorted(labels)}")
-        minimum_test_samples = max(len(labels) * self.MIN_TEST_SAMPLES_PER_CLASS, 1)
-        if samples < minimum_test_samples:
-            problems.append(f"test samples {samples} < {minimum_test_samples}")
+        required_samples = len(labels) * self.MIN_TEST_SAMPLES_PER_CLASS
+        if samples < required_samples:
+            problems.append(f"test samples {samples} < {required_samples}")
         if top1 < self.MIN_TOP1:
             problems.append(f"top1 {top1:.2f} < {self.MIN_TOP1:.2f}")
         if macro_f1 < self.MIN_MACRO_F1:
@@ -74,59 +68,113 @@ class CoreExtensionModel:
             problems.append(f"coverage {coverage:.2f} < {self.MIN_COVERAGE:.2f}")
 
         if problems:
-            self.load_error = "Core extension quality gate failed: " + "; ".join(problems)
-            self.quality_reason = self.load_error
-            return False
-
-        self.loaded = True
-        self.load_error = None
-        self.quality_reason = (
+            return False, "Core extension quality gate failed: " + "; ".join(problems)
+        return True, (
             f"passed: top1={top1:.2f}, macroF1={macro_f1:.2f}, "
             f"accepted={accepted:.2f}, coverage={coverage:.2f}, n={samples}"
         )
-        return True
+
+    def reload(self) -> bool:
+        self.loaded = False
+        self._model = None
+        required = [self.model_path, self.norm_path, self.manifest_path, self.report_path]
+        if not all(path.exists() for path in required):
+            self.load_error = "No quality-gated core extension artifact is installed."
+            self.quality_reason = self.load_error
+            return False
+
+        try:
+            manifest = json.loads(self.manifest_path.read_text(encoding="utf-8"))
+            report = json.loads(self.report_path.read_text(encoding="utf-8"))
+            quality_ok, reason = self._check_quality(manifest, report)
+            self.quality_reason = reason
+            if not quality_ok:
+                self.load_error = reason
+                return False
+
+            import keras  # KERAS_BACKEND=openvino is set by bootstrap_model
+
+            if keras.backend.backend() != "openvino":
+                raise RuntimeError(f"expected OpenVINO backend, got {keras.backend.backend()}")
+            model = keras.saving.load_model(self.model_path, compile=False)
+            norm = np.load(self.norm_path)
+            mean = norm["mean"].astype(np.float32)
+            std = norm["std"].astype(np.float32)
+            labels = list(manifest["labels"])
+            seq_len = int(manifest["sequence_length"])
+            feature_dim = int(manifest["feature_dim"])
+            if tuple(model.input_shape)[-2:] != (seq_len, feature_dim):
+                raise ValueError(f"unexpected input shape {model.input_shape}")
+            if tuple(model.output_shape)[-1] != len(labels):
+                raise ValueError(f"unexpected output shape {model.output_shape}")
+            probe = np.zeros((1, seq_len, feature_dim), dtype=np.float32)
+            out = np.asarray(model.predict(probe, verbose=0), dtype=np.float32)
+            if out.shape != (1, len(labels)):
+                raise ValueError(f"probe output mismatch {out.shape}")
+
+            self._model = model
+            self._mean = mean
+            self._std = std
+            self._labels = labels
+            self._manifest = manifest
+            self.loaded = True
+            self.load_error = None
+            return True
+        except Exception as exc:
+            self.load_error = f"Core extension load failed: {exc}"
+            self.quality_reason = self.load_error
+            return False
 
     @property
     def labels(self) -> list[str]:
-        return list(self.model.labels) if self.loaded else []
+        return list(self._labels) if self.loaded else []
 
     @property
     def version(self):
-        return self.model.version if self.loaded else None
+        return self._manifest.get("model_version") if self.loaded else None
 
     @property
     def backend(self) -> str:
-        return f"core_extension:{self.model.backend}" if self.loaded else "core_extension:none"
+        return "core_extension_bilstm_openvino" if self.loaded else "core_extension:none"
 
     @property
     def source(self) -> str:
-        return self.model.source if self.loaded else "SANKET public core extension"
+        return str(self._manifest.get("source", "SANKET public core extension"))
 
     @property
     def schema_version(self):
-        return self.model.schema_version
+        return str(self._manifest.get("feature_schema", "holistic-v1"))
 
     @property
     def sequence_length(self) -> int:
-        return self.model.sequence_length
+        return int(self._manifest.get("sequence_length", 48))
 
     @property
     def accept_threshold(self) -> float:
-        return self.model.accept_threshold
+        return float(self._manifest.get("accept_threshold", 0.65))
 
     @property
     def margin_threshold(self) -> float:
-        return self.model.margin_threshold
+        return float(self._manifest.get("margin_threshold", 0.08))
 
     @property
     def motion_threshold(self) -> float:
-        return self.model.motion_threshold
+        return float(self._manifest.get("motion_threshold", 0.0010))
 
     @property
     def tracking_threshold(self) -> float:
-        return self.model.tracking_threshold
+        return float(self._manifest.get("tracking_threshold", 0.48))
 
-    def predict(self, sequence):
-        if not self.loaded:
-            raise RuntimeError(self.load_error or "core extension is unavailable")
-        return self.model.predict(sequence)
+    def predict(self, sequence: np.ndarray) -> ModelPrediction:
+        if not self.loaded or self._model is None or self._mean is None or self._std is None:
+            raise RuntimeError(self.load_error or "core extension unavailable")
+        seq = resample_sequence(sequence.astype(np.float32, copy=False), self.sequence_length)
+        seq = (seq - self._mean) / self._std
+        probs = np.asarray(
+            self._model.predict(np.expand_dims(seq, 0), verbose=0),
+            dtype=np.float32,
+        )[0]
+        total = float(probs.sum())
+        if probs.shape[0] != len(self._labels) or total <= 0 or not np.isfinite(total):
+            raise ValueError("invalid core extension probabilities")
+        return ModelPrediction(labels=self._labels, probabilities=probs / total)

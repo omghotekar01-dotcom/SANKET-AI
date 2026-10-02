@@ -1,4 +1,4 @@
-core-extension-v1 retrain 4
-Targets: yes,no,help,water,where
-Gate: unchanged accuracy/F1/coverage thresholds; holdout minimum = one sample per class.
-STOP remains separate until a verified source is trained.
+core-extension-bilstm-v1
+Deterministic five-sign training: help,no,water,where,yes.
+Uses 48-frame multimodal landmark sequences and a quality-gated BiLSTM.
+STOP remains excluded pending a separate verified source.
