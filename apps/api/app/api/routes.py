@@ -16,7 +16,11 @@ from ..services.collector_service import CollectorService
 from ..services.context_service import DOMAINS, domain_descriptors
 from ..services.replay_service import SCENARIOS
 from ..services.language_service import supported_languages
-from ..services.vocabulary_service import CORE_VOCABULARY, core_coverage
+from ..services.vocabulary_service import (
+    CORE_VOCABULARY,
+    core_coverage,
+    safe_bootstrap_labels,
+)
 
 router = APIRouter(prefix="/api")
 store = LocalStore(settings.db_path)
@@ -37,6 +41,9 @@ def health():
         "model_source": model.source,
         "model_is_bootstrap": model.is_bootstrap,
         "model_vocabulary_size": len(model.labels),
+        "default_recognition_scope": "core_safe",
+        "safe_core_vocabulary": safe_bootstrap_labels(model.labels) if model.loaded and model.is_bootstrap else list(model.labels),
+        "safe_core_vocabulary_size": len(safe_bootstrap_labels(model.labels)) if model.loaded and model.is_bootstrap else len(model.labels),
         "model_error": model.load_error,
         "model_selection_reason": model.selection_reason,
         "core_extension_loaded": core_extension.loaded,
@@ -75,7 +82,13 @@ def domains():
 def signs():
     from ..runtime import core_extension, model
 
-    live = list(model.labels) if model.loaded else []
+    experimental = list(model.labels) if model.loaded else []
+    safe = (
+        safe_bootstrap_labels(experimental)
+        if model.loaded and model.is_bootstrap
+        else list(experimental)
+    )
+    live = list(safe)
     if core_extension.loaded:
         for label in core_extension.labels:
             if label not in live:
@@ -85,6 +98,10 @@ def signs():
     return {
         "live_vocabulary": live,
         "live_vocabulary_size": len(live),
+        "safe_live_vocabulary": live,
+        "experimental_vocabulary": experimental,
+        "experimental_vocabulary_size": len(experimental),
+        "default_recognition_scope": "core_safe",
         "model_backend": model.backend,
         "model_source": model.source,
         "model_is_bootstrap": model.is_bootstrap,

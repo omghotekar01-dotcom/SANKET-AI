@@ -9,6 +9,7 @@ import numpy as np
 from ..schemas import Alternative, PredictionEvent, RecognitionState, TrackingInfo
 from .confidence_service import GateConfig, decide
 from .context_service import rerank
+from .vocabulary_service import normalize_label
 
 
 @dataclass
@@ -21,9 +22,20 @@ class DecoderConfig:
 
 
 class RecognitionSession:
-    def __init__(self, model, domain: str = "general", config: DecoderConfig | None = None):
+    def __init__(
+        self,
+        model,
+        domain: str = "general",
+        config: DecoderConfig | None = None,
+        allowed_labels: set[str] | None = None,
+    ):
         self.model = model
         self.domain = domain
+        self.allowed_labels = (
+            {normalize_label(label) for label in allowed_labels}
+            if allowed_labels
+            else None
+        )
 
         if config is None:
             bootstrap = bool(getattr(model, "is_bootstrap", False))
@@ -101,6 +113,17 @@ class RecognitionSession:
 
         pred = self.model.predict(np.stack(self.frames))
         probs = rerank(pred.labels, pred.probabilities, self.domain)
+
+        # Do not renormalize after safe-vocabulary masking. If an experimental
+        # class owns most probability mass, the best safe label keeps its small
+        # original probability and therefore fails the confidence gate.
+        if self.allowed_labels is not None:
+            mask = np.asarray(
+                [normalize_label(label) in self.allowed_labels for label in pred.labels],
+                dtype=bool,
+            )
+            probs = np.where(mask, probs, 0.0).astype(np.float32)
+
         order = np.argsort(probs)[::-1]
         top_idx = int(order[0])
         label = pred.labels[top_idx]
@@ -141,12 +164,17 @@ class RecognitionSession:
         else:
             self._candidate, self._stable_count = None, 0
 
+        alternative_indices = [
+            int(i) for i in order[1:]
+            if self.allowed_labels is None
+            or normalize_label(pred.labels[int(i)]) in self.allowed_labels
+        ][:3]
         alternatives = [
             Alternative(
-                label=pred.labels[int(i)],
-                confidence=float(probs[int(i)]),
+                label=pred.labels[i],
+                confidence=float(probs[i]),
             )
-            for i in order[1:4]
+            for i in alternative_indices
         ]
 
         return PredictionEvent(

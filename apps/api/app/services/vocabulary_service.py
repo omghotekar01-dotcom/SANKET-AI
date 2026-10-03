@@ -44,3 +44,23 @@ def core_coverage(active_labels: Iterable[str]) -> dict:
         "total": total,
         "fraction": (len(supported) / total) if total else 0.0,
     }
+
+
+# Default live mode deliberately exposes only the bootstrap classes that
+# overlap SANKET's required project vocabulary. The broader external model is
+# still available as an explicitly experimental mode.
+SAFE_BOOTSTRAP_CORE_IDS = (
+    "hello",
+    "thank_you",
+    "doctor",
+    "hospital",
+    "medicine",
+    "police",
+    "student",
+    "teacher",
+)
+
+
+def safe_bootstrap_labels(active_labels: Iterable[str]) -> list[str]:
+    allowed = set(SAFE_BOOTSTRAP_CORE_IDS)
+    return [label for label in active_labels if normalize_label(label) in allowed]
