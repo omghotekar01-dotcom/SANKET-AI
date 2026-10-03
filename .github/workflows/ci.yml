@@ -76,10 +76,19 @@ jobs:
           python -m pip install -r apps/api/requirements-dev.txt
           python -m pip install -r apps/api/requirements-vision.txt
           python -m pip install -r apps/api/requirements-bootstrap.txt
-      - name: Download verified 50-word model
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.5,<3"
+          python -m pip install -r apps/api/requirements-openhands.txt
+      - name: Download verified fallback model
         run: python scripts/install_bootstrap.py
-      - name: Process real JPEG and run model inference on Windows
+      - name: Download and convert official OpenHands INCLUDE model
+        run: python scripts/install_openhands.py
+      - name: Process real JPEG and run fallback inference on Windows
         run: python scripts/smoke_live_runtime.py
+      - name: Run official OpenHands SL-GCN inference on Windows
+        run: python scripts/smoke_openhands_runtime.py
+      - name: Verify integrated Windows model selection
+        run: |
+          python -c "from apps.api.app.runtime import model, perception; assert perception.available, perception.reason; assert model.loaded, model.load_error; assert model.backend == 'ai4bharat_include_slgcn_pytorch', (model.backend, model.selection_reason); assert len(model.labels) == 263; print('Windows integrated model:', model.backend, model.version)"
 
   openhands-recognizer:
     runs-on: ubuntu-latest

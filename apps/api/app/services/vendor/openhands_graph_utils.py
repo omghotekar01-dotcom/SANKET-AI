@@ -1,4 +1,5 @@
-# Vendored from AI4Bharat/OpenHands (Apache-2.0).\nimport numpy as np
+# Vendored from AI4Bharat/OpenHands (Apache-2.0).
+import numpy as np
 
 
 def get_hop_distance(num_node, edge, max_hop=1):
