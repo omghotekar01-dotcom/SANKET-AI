@@ -1,0 +1,68 @@
+name: Probe OpenHands INCLUDE adapter
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/triggers/openhands-include-probe.txt"
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install CPU torch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
+      - name: Download official AI4Bharat INCLUDE assets
+        run: |
+          mkdir -p /tmp/openhands
+          curl -L --fail --retry 3 -o /tmp/openhands/include_slgcn.zip https://github.com/AI4Bharat/OpenHands/releases/download/checkpoints_v1/include_slgcn.zip
+          curl -L --fail --retry 3 -o /tmp/openhands/include_metadata.zip https://github.com/AI4Bharat/OpenHands/releases/download/checkpoints_v1/include_metadata.zip
+          unzip -q /tmp/openhands/include_slgcn.zip -d /tmp/openhands/slgcn
+          unzip -q /tmp/openhands/include_metadata.zip -d /tmp/openhands/meta
+      - name: Inspect labels and checkpoint state dict
+        run: |
+          python - <<'PY'
+          import csv, json, re, torch
+          from pathlib import Path
+
+          core = [
+              "hello","thank_you","yes","no","help","doctor","hospital","water","pain",
+              "medicine","police","fire","danger","accident","stop","where","name",
+              "student","teacher","repeat","understand",
+          ]
+
+          def norm(s):
+              s = re.sub(r"^\s*\d+\.\s*", "", s).strip().lower()
+              return re.sub(r"[^a-z0-9]+", "_", s).strip("_")
+
+          csv_path = Path("/tmp/openhands/meta/Train_Test_Split/train_include.csv")
+          with csv_path.open(encoding="utf-8-sig", newline="") as f:
+              rows = list(csv.DictReader(f))
+          raw_labels = sorted({r["Word"] for r in rows})
+          labels = [norm(x) for x in raw_labels]
+          overlap = [(i, raw_labels[i], labels[i]) for i in range(len(labels)) if labels[i] in core]
+          print("LABEL_COUNT", len(labels))
+          print("CORE_OVERLAP", json.dumps(overlap))
+          print("CORE_MISSING", json.dumps([x for x in core if x not in set(labels)]))
+
+          ckpt_path = Path("/tmp/openhands/slgcn/include/sl_gcn/epoch=112-step=12203.ckpt")
+          try:
+              ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+          except TypeError:
+              ckpt = torch.load(ckpt_path, map_location="cpu")
+          print("CKPT_TOP_KEYS", list(ckpt.keys()))
+          state = ckpt.get("state_dict", ckpt)
+          print("STATE_COUNT", len(state))
+          for k,v in state.items():
+              if hasattr(v,"shape"):
+                  print("STATE", k, tuple(v.shape))
+          hparams = ckpt.get("hyper_parameters")
+          if hparams is not None:
+              print("HPARAMS", repr(hparams)[:12000])
+          PY
