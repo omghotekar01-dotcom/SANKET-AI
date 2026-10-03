@@ -18,24 +18,32 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
-      - name: Install extraction and training stack
+
+      - name: Install MediaPipe extraction stack
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r apps/api/requirements-dev.txt
           python -m pip install -r apps/api/requirements-vision.txt
           python -m pip install -r apps/api/requirements-public-train.txt
-      - name: Extract 10 signs from 15-signer ISL500 data
+
+      - name: Extract 9 signs from 15-signer ISL500 data
         run: python -m ml.training.isl500_specialist_extract --max-per-class 15
-      - name: Train signer-aware temporal specialist
-        run: |
-          python -m ml.training.train_template             --data data/isl500_specialist             --out ml/artifacts/isl500-specialist-v1
-      - name: Enforce signer-disjoint quality gate
-        run: python -m ml.training.isl500_specialist_gate
-      - name: Commit only passing artifact
+
+      - name: Install isolated neural training backend
+        run: python -m pip install tensorflow==2.20.0
+
+      - name: Train TCN BiGRU and Conv-GRU candidates
+        run: python -m ml.training.isl500_specialist_neural
+
+      - name: Enforce 3-signer held-out quality gate
+        run: python -m ml.training.isl500_specialist_neural_gate
+
+      - name: Commit only passing neural artifact
         run: |
           git config user.name "SANKET AI Trainer"
           git config user.email "actions@users.noreply.github.com"
