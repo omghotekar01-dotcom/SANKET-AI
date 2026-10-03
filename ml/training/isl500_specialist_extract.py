@@ -23,7 +23,6 @@ TARGETS = (
     "yes",
     "no",
     "help",
-    "hospital",
     "water",
     "teacher",
     "student",

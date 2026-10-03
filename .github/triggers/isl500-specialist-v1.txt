@@ -1,5 +1,6 @@
-isl500-specialist-v1
-Targets: hello, thank_you, yes, no, help, hospital, water, teacher, student, where
+isl500-specialist-v1 retrain 2
+Targets: hello, thank_you, yes, no, help, water, teacher, student, where
+Hospital remains on the existing 50-word recognizer because the aggregate ISL500 subset contains no hospital clips.
 Source: ISL500 clips only, 15 users when available.
 Evaluation: signer-disjoint split required.
 Gate: >=70% top1, >=65% macro F1, >=80% accepted accuracy, >=50% coverage.
