@@ -1,6 +1,6 @@
-isl500-specialist-neural-v1 retrigger 3
-Reliable targets: hello, thank_you, yes, no, help, water, teacher, student
-WHERE intentionally removed after 3-signer test showed it absorbed most errors.
+isl500-specialist-neural-v1 retrigger 4
+Validated target candidates: hello, thank_you, yes, water, teacher, student
+HELP and NO intentionally excluded after unseen-signer evaluation showed poor precision/recall.
 Data: ISL500-only real videos.
 Split: 10 train signers / 2 validation signers / 3 unseen test signers.
 Candidates: TCN, BiGRU, Conv+GRU.

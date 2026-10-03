@@ -21,8 +21,6 @@ TARGETS = (
     "hello",
     "thank you",
     "yes",
-    "no",
-    "help",
     "water",
     "teacher",
     "student",
