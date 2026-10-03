@@ -39,10 +39,11 @@ jobs:
         run: |
           git config user.name "SANKET AI Trainer"
           git config user.email "actions@users.noreply.github.com"
-          git add -f ml/artifacts/isl500-specialist-v1/model.npz
+          git add -f ml/artifacts/isl500-specialist-v1/model.keras
+          git add -f ml/artifacts/isl500-specialist-v1/normalization.npz
           git add -f ml/artifacts/isl500-specialist-v1/manifest.json
           git add -f ml/artifacts/isl500-specialist-v1/evaluation.json
           git add -f ml/artifacts/isl500-specialist-v1/MODEL_CARD.md
-          git commit -m "model: add signer-disjoint ISL500 reliable specialist"
+          git commit -m "model: add signer-disjoint ISL500 neural specialist"
           git pull --rebase origin main
           git push origin HEAD:main

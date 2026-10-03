@@ -1,6 +1,6 @@
-isl500-specialist-v1 retrain 2
+isl500-specialist-neural-v1
 Targets: hello, thank_you, yes, no, help, water, teacher, student, where
-Hospital remains on the existing 50-word recognizer because the aggregate ISL500 subset contains no hospital clips.
-Source: ISL500 clips only, 15 users when available.
-Evaluation: signer-disjoint split required.
+Data: ISL500-only real videos.
+Split: 10 train signers / 2 validation signers / 3 unseen test signers.
+Candidates: TCN, BiGRU, Conv+GRU. Best validation model is evaluated on final test signers.
 Gate: >=70% top1, >=65% macro F1, >=80% accepted accuracy, >=50% coverage.
