@@ -23,6 +23,7 @@ class Settings:
     model_dir: Path = REPO_ROOT / os.getenv("MODEL_DIR", "ml/artifacts/demo-v1")
     bootstrap_dir: Path = REPO_ROOT / os.getenv("BOOTSTRAP_MODEL_DIR", "ml/artifacts/bootstrap-50")
     core_extension_dir: Path = REPO_ROOT / os.getenv("CORE_EXTENSION_MODEL_DIR", "ml/artifacts/core-extension-v1")
+    openhands_dir: Path = REPO_ROOT / os.getenv("OPENHANDS_MODEL_DIR", "ml/artifacts/openhands-include")
     db_path: Path = REPO_ROOT / os.getenv("DB_PATH", "data/local/sanket.db")
     collected_dir: Path = REPO_ROOT / "data/local/collected"
     clip_registry: Path = REPO_ROOT / "assets/sign_clips/registry.json"
@@ -30,6 +31,7 @@ class Settings:
     enable_raw_video_capture: bool = _bool("ENABLE_RAW_VIDEO_CAPTURE", False)
     enable_experimental_calling: bool = _bool("ENABLE_EXPERIMENTAL_CALLING", True)
     enable_bootstrap_model: bool = _bool("ENABLE_BOOTSTRAP_MODEL", True)
+    enable_openhands_model: bool = _bool("ENABLE_OPENHANDS_MODEL", True)
     recognition_fps: int = int(os.getenv("RECOGNITION_FPS", "10"))
     sequence_length: int = int(os.getenv("SEQUENCE_LENGTH", "48"))
 

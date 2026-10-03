@@ -8,6 +8,8 @@ perception = HolisticLandmarkService()
 model = HybridRecognitionModel(
     settings.model_dir,
     settings.bootstrap_dir,
+    openhands_dir=settings.openhands_dir,
     enable_bootstrap=settings.enable_bootstrap_model,
+    enable_openhands=settings.enable_openhands_model,
 )
 core_extension = CoreExtensionModel(settings.core_extension_dir)

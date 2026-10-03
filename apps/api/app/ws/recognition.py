@@ -118,11 +118,12 @@ async def recognition_socket(websocket: WebSocket):
 
                 primary_event = None
                 if model.loaded:
-                    primary_vector = (
-                        result.bootstrap_vector
-                        if model.input_schema == "bootstrap"
-                        else result.vector
-                    )
+                    if model.input_schema == "bootstrap":
+                        primary_vector = result.bootstrap_vector
+                    elif model.input_schema == "openhands":
+                        primary_vector = result.openhands_vector
+                    else:
+                        primary_vector = result.vector
                     primary_event = primary_session.push(primary_vector, result.tracking)
 
                 extension_event = None

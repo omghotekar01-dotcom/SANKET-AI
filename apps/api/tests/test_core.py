@@ -213,3 +213,21 @@ def test_signs_endpoint_separates_safe_and_experimental_vocabularies():
         assert payload['live_vocabulary_size'] == 8
         assert payload['experimental_vocabulary_size'] == 50
         assert 'Happy' not in payload['safe_live_vocabulary']
+
+
+def test_openhands_clip_normalization_matches_shoulder_contract():
+    from apps.api.app.services.openhands_include_model import OpenHandsIncludeModel
+    seq = np.zeros((3, 54), dtype=np.float32)
+    points = seq.reshape(3, 27, 2)
+    points[:, 3] = [0.0, 0.0]
+    points[:, 4] = [2.0, 0.0]
+    normalized = OpenHandsIncludeModel._normalize_clip(seq)
+    assert normalized.shape == (3, 27, 2)
+    assert np.allclose(normalized[:, 3], [-0.5, 0.0])
+    assert np.allclose(normalized[:, 4], [0.5, 0.0])
+
+
+def test_openhands_minimal_landmark_layout_has_27_nodes():
+    from apps.api.app.services.landmark_service import OPENHANDS_MINIMAL_27_INDICES
+    assert len(OPENHANDS_MINIMAL_27_INDICES) == 27
+    assert max(OPENHANDS_MINIMAL_27_INDICES) == 74

@@ -134,7 +134,7 @@ export function Interpreter({language}:{language:LanguageMode}) {
     if(r.prediction?.state==='TRACKING_LOST')return 'Move back into frame'
     if(r.prediction?.state==='NO_SIGN')return 'Ready for your next sign'
     if(r.modelIsBootstrap&&recognitionScope==='core_safe')return `Reliable Core · ${r.modelVocabularySize} signs`
-    if(r.modelIsBootstrap)return `Experimental bootstrap · ${r.modelVocabularySize} signs`
+    if(r.modelIsBootstrap)return `Experimental full · ${r.modelVocabularySize} signs`
     return 'Local SANKET recognizer'
   },[r.backendState,r.perceptionState,r.modelState,r.modelIsBootstrap,r.modelVocabularySize,r.prediction,recognitionScope])
 
@@ -155,7 +155,7 @@ export function Interpreter({language}:{language:LanguageMode}) {
             setTestConfidence(null)
           }}>
             <option value="core_safe">Reliable Core</option>
-            <option value="experimental_50">Experimental 50</option>
+            <option value="experimental_50">Experimental full vocabulary</option>
           </select>
         </label>
         <label className="context-control">Context

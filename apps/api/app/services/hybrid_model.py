@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from .bootstrap_model import BootstrapKerasModel
+from .openhands_include_model import OpenHandsIncludeModel
 from .temporal_model import TemporalTemplateModel
 
 
@@ -13,8 +14,9 @@ class HybridRecognitionModel:
     Priority:
     1. A locally collected SANKET model only when its held-out report clears
        conservative minimum quality gates.
-    2. The verified external 50-word BiLSTM bootstrap model.
-    3. Any other readable SANKET temporal artifact as an emergency fallback.
+    2. The official AI4Bharat OpenHands INCLUDE SL-GCN pack when installed.
+    3. The verified external 50-word BiLSTM bootstrap model.
+    4. Any other readable SANKET temporal artifact as an emergency fallback.
     """
 
     MIN_LOCAL_TOP1 = 0.60
@@ -22,9 +24,21 @@ class HybridRecognitionModel:
     MIN_LOCAL_COVERAGE = 0.30
     MIN_LOCAL_TEST_SAMPLES = 3
 
-    def __init__(self, local_dir: Path, bootstrap_dir: Path, enable_bootstrap: bool = True):
+    def __init__(
+        self,
+        local_dir: Path,
+        bootstrap_dir: Path,
+        openhands_dir: Path | None = None,
+        enable_bootstrap: bool = True,
+        enable_openhands: bool = True,
+    ):
         self.local_dir = Path(local_dir)
         self.local = TemporalTemplateModel(local_dir)
+        self.openhands = (
+            OpenHandsIncludeModel(openhands_dir)
+            if enable_openhands and openhands_dir is not None
+            else None
+        )
         self.bootstrap = BootstrapKerasModel(bootstrap_dir) if enable_bootstrap else None
         self.active = None
         self.selection_reason = "not evaluated"
@@ -69,6 +83,10 @@ class HybridRecognitionModel:
 
     def reload(self) -> bool:
         local_ok = self.local.reload()
+        openhands_ok = False
+        if self.openhands is not None:
+            openhands_ok = self.openhands.reload()
+
         bootstrap_ok = False
         if self.bootstrap is not None:
             bootstrap_ok = self.bootstrap.reload()
@@ -81,12 +99,17 @@ class HybridRecognitionModel:
         if local_ok and local_preferred:
             self.active = self.local
             self.selection_reason = local_reason
+        elif openhands_ok and self.openhands is not None:
+            self.active = self.openhands
+            self.selection_reason = (
+                "official AI4Bharat OpenHands INCLUDE SL-GCN selected; "
+                + local_reason
+            )
         elif bootstrap_ok and self.bootstrap is not None:
             self.active = self.bootstrap
             self.selection_reason = (
-                "verified 50-word bootstrap selected; " + local_reason
-                if local_ok else
-                "verified 50-word bootstrap selected; no local model available"
+                "verified 50-word bootstrap selected; OpenHands pack unavailable; "
+                + local_reason
             )
         elif local_ok:
             self.active = self.local
@@ -153,13 +176,17 @@ class HybridRecognitionModel:
         if self.active is not None:
             return None
         errors = [self.local.load_error]
+        if self.openhands is not None:
+            errors.append(self.openhands.load_error)
         if self.bootstrap is not None:
             errors.append(self.bootstrap.load_error)
         return " | ".join(e for e in errors if e) or "No recognition model available."
 
     @property
     def input_schema(self) -> str:
-        return "bootstrap" if self.is_bootstrap else "native"
+        if self.active is None:
+            return "native"
+        return str(getattr(self.active, "input_schema", "bootstrap" if self.is_bootstrap else "native"))
 
     def predict(self, sequence):
         if self.active is None:

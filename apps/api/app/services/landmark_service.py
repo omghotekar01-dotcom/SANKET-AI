@@ -23,6 +23,12 @@ except Exception:
 
 from .feature_schema import FACE_INDICES, POSE_INDICES, SCHEMA
 
+OPENHANDS_MINIMAL_27_INDICES = (
+    0, 2, 5, 11, 12, 13, 14,
+    33, 37, 38, 41, 42, 45, 46, 49, 50, 53,
+    54, 58, 59, 62, 63, 66, 67, 70, 71, 74,
+)
+
 BOOTSTRAP_FACE_INDICES = (
     70, 63, 105, 66, 107, 55, 65, 52,
     300, 293, 334, 296, 336, 285, 295, 282,
@@ -41,6 +47,7 @@ except Exception:  # pragma: no cover - runtime dependency
 class PerceptionResult:
     vector: np.ndarray
     bootstrap_vector: np.ndarray
+    openhands_vector: np.ndarray
     tracking: dict
     overlay: dict
     latency_ms: float
@@ -117,6 +124,30 @@ class HolisticLandmarkService:
         return coords.flatten()
 
     @staticmethod
+    def _openhands_pose(pose_landmarks, left_landmarks, right_landmarks) -> np.ndarray:
+        """Build OpenHands' 75-point Holistic layout then select its minimal 27 nodes."""
+        points = np.zeros((75, 2), dtype=np.float32)
+        if pose_landmarks:
+            count = min(33, len(pose_landmarks))
+            points[:count] = np.asarray(
+                [[pose_landmarks[i].x, pose_landmarks[i].y] for i in range(count)],
+                dtype=np.float32,
+            )
+        if left_landmarks:
+            count = min(21, len(left_landmarks))
+            points[33:33 + count] = np.asarray(
+                [[left_landmarks[i].x, left_landmarks[i].y] for i in range(count)],
+                dtype=np.float32,
+            )
+        if right_landmarks:
+            count = min(21, len(right_landmarks))
+            points[54:54 + count] = np.asarray(
+                [[right_landmarks[i].x, right_landmarks[i].y] for i in range(count)],
+                dtype=np.float32,
+            )
+        return points[list(OPENHANDS_MINIMAL_27_INDICES)].reshape(-1)
+
+    @staticmethod
     def _bootstrap_pose(landmarks) -> np.ndarray:
         if not landmarks:
             return np.zeros(33 * 4, dtype=np.float32)
@@ -179,6 +210,10 @@ class HolisticLandmarkService:
         if vector.shape[0] != SCHEMA.feature_dim:
             raise RuntimeError(f"native feature schema mismatch {vector.shape[0]} != {SCHEMA.feature_dim}")
 
+        openhands_vector = self._openhands_pose(pose_lms, left_lms, right_lms)
+        if openhands_vector.shape[0] != 54:
+            raise RuntimeError(f"OpenHands feature schema mismatch {openhands_vector.shape[0]} != 54")
+
         bootstrap_vector = np.concatenate(
             [
                 self._bootstrap_pose(pose_lms),
@@ -200,6 +235,7 @@ class HolisticLandmarkService:
         return PerceptionResult(
             vector=vector,
             bootstrap_vector=bootstrap_vector,
+            openhands_vector=openhands_vector,
             tracking={
                 "left_hand": has_left,
                 "right_hand": has_right,
