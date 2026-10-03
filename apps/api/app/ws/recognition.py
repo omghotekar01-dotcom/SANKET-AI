@@ -9,7 +9,10 @@ from ..api.routes import collector_service
 from ..runtime import core_extension, model, perception
 from ..services.context_service import DOMAINS
 from ..services.inference_service import RecognitionSession
+from ..services.vocabulary_service import SAFE_BOOTSTRAP_CORE_IDS, safe_bootstrap_labels
 from ..schemas import RecognitionState
+
+VALID_SCOPES = {"core_safe", "experimental_50"}
 
 
 def _event_rank(event) -> tuple[int, float]:
@@ -25,8 +28,6 @@ def _event_rank(event) -> tuple[int, float]:
 
 
 def _choose_event(primary, extension):
-    # The extension contains only labels absent from the bootstrap core set and
-    # is enabled only after its held-out quality gate passes.
     if extension is not None and extension.state == RecognitionState.ACCEPTED:
         return extension
     if primary is not None and primary.state == RecognitionState.ACCEPTED:
@@ -36,11 +37,27 @@ def _choose_event(primary, extension):
 
 async def recognition_socket(websocket: WebSocket):
     await websocket.accept()
-    primary_session = RecognitionSession(model)
+    requested_scope = websocket.query_params.get("recognition_scope", "core_safe")
+    scope = requested_scope if requested_scope in VALID_SCOPES else "core_safe"
+
+    allowed_labels = None
+    if model.loaded and model.is_bootstrap and scope == "core_safe":
+        allowed_labels = set(SAFE_BOOTSTRAP_CORE_IDS)
+
+    primary_session = RecognitionSession(model, allowed_labels=allowed_labels)
     extension_session = RecognitionSession(core_extension) if core_extension.loaded else None
     collector_id = websocket.query_params.get("collector_id")
 
-    live_labels = list(model.labels) if model.loaded else []
+    if model.loaded:
+        primary_labels = (
+            safe_bootstrap_labels(model.labels)
+            if model.is_bootstrap and scope == "core_safe"
+            else list(model.labels)
+        )
+    else:
+        primary_labels = []
+
+    live_labels = list(primary_labels)
     if core_extension.loaded:
         live_labels.extend(label for label in core_extension.labels if label not in live_labels)
 
@@ -52,6 +69,9 @@ async def recognition_socket(websocket: WebSocket):
         "model_source": model.source,
         "model_is_bootstrap": model.is_bootstrap,
         "model_vocabulary_size": len(live_labels),
+        "recognition_scope": scope,
+        "scoped_vocabulary": live_labels,
+        "experimental_vocabulary_size": len(model.labels) if model.loaded and model.is_bootstrap else len(live_labels),
         "core_extension_loaded": core_extension.loaded,
         "core_extension_labels": core_extension.labels,
         "perception_available": perception.available,

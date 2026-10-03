@@ -138,3 +138,78 @@ def test_marathi_reverse_isl_uses_same_canonical_sign_lookup():
     assert body['normalized_text'] == 'डॉक्टर'
     assert body['canonical_text'] == 'doctor'
     assert body['items'][0]['phrase'] == 'doctor'
+
+
+class _FixedPrediction:
+    def __init__(self, labels, probabilities):
+        self.labels = labels
+        self.probabilities = np.asarray(probabilities, dtype=np.float32)
+
+
+class _FakeBootstrap:
+    loaded = True
+    is_bootstrap = True
+    sequence_length = 2
+    version = "fake"
+    schema_version = "fake-schema"
+    tracking_threshold = 0.1
+    motion_threshold = 0.01
+    accept_threshold = 0.60
+    margin_threshold = 0.06
+
+    def __init__(self, probabilities):
+        self.labels = ["Happy", "Hello", "Doctor"]
+        self._probabilities = probabilities
+
+    def predict(self, sequence):
+        return _FixedPrediction(self.labels, self._probabilities)
+
+
+def test_reliable_core_rejects_high_confidence_happy_instead_of_guessing():
+    from apps.api.app.services.inference_service import RecognitionSession, DecoderConfig
+    session = RecognitionSession(
+        _FakeBootstrap([0.90, 0.06, 0.04]),
+        allowed_labels={"hello", "doctor"},
+        config=DecoderConfig(sequence_length=2, minimum_frames=2, stable_predictions=1),
+    )
+    tracking = {"left_hand":True,"right_hand":False,"pose":True,"face":True,"quality":1.0}
+    assert session.push(np.zeros(3, dtype=np.float32), tracking) is None
+    event = session.push(np.ones(3, dtype=np.float32), tracking)
+    assert event is not None
+    assert event.state == RecognitionState.NEED_REPEAT
+    assert event.label is None
+    assert event.confidence < 0.60
+
+
+def test_reliable_core_accepts_strong_allowed_class():
+    from apps.api.app.services.inference_service import RecognitionSession, DecoderConfig
+    session = RecognitionSession(
+        _FakeBootstrap([0.05, 0.88, 0.07]),
+        allowed_labels={"hello", "doctor"},
+        config=DecoderConfig(sequence_length=2, minimum_frames=2, stable_predictions=1),
+    )
+    tracking = {"left_hand":True,"right_hand":False,"pose":True,"face":True,"quality":1.0}
+    assert session.push(np.zeros(3, dtype=np.float32), tracking) is None
+    event = session.push(np.ones(3, dtype=np.float32), tracking)
+    assert event is not None
+    assert event.state == RecognitionState.ACCEPTED
+    assert event.label == "Hello"
+
+
+def test_recognition_socket_defaults_to_reliable_core_scope():
+    with client.websocket_connect('/ws/recognize') as ws:
+        msg = ws.receive_json()
+        assert msg['type'] == 'ready'
+        assert msg['recognition_scope'] == 'core_safe'
+        if msg.get('model_is_bootstrap'):
+            assert msg['model_vocabulary_size'] == 8
+            assert len(msg['scoped_vocabulary']) == 8
+
+
+def test_signs_endpoint_separates_safe_and_experimental_vocabularies():
+    payload = client.get('/api/signs').json()
+    assert payload['default_recognition_scope'] == 'core_safe'
+    if payload['model_is_bootstrap']:
+        assert payload['live_vocabulary_size'] == 8
+        assert payload['experimental_vocabulary_size'] == 50
+        assert 'Happy' not in payload['safe_live_vocabulary']
