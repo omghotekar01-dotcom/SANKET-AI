@@ -1,0 +1,5 @@
+isl500-specialist-v1
+Targets: hello, thank_you, yes, no, help, hospital, water, teacher, student, where
+Source: ISL500 clips only, 15 users when available.
+Evaluation: signer-disjoint split required.
+Gate: >=70% top1, >=65% macro F1, >=80% accepted accuracy, >=50% coverage.
