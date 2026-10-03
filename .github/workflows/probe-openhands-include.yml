@@ -16,8 +16,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install CPU torch
-        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
+      - name: Install modern checkpoint compatibility stack
+        run: |
+          python -m pip install numpy pytorch-lightning
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
       - name: Download official AI4Bharat INCLUDE assets
         run: |
           mkdir -p /tmp/openhands

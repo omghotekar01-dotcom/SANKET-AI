@@ -1,2 +1,2 @@
-probe-openhands-include-adapter-v1
-Goal: reconstruct exact INCLUDE label IDs and inspect SL-GCN checkpoint tensors under modern CPU PyTorch.
+probe-openhands-include-adapter-v2
+Adds numpy + pytorch-lightning solely to deserialize the official 2021 Lightning checkpoint and inspect its state dict.
