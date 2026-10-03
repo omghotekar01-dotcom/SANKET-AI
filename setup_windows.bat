@@ -33,7 +33,7 @@ if errorlevel 1 (
   goto :fail
 )
 
-echo [1/10] Rebuilding clean Python environment...
+echo [1/13] Rebuilding clean Python environment...
 if exist ".venv" (
   rmdir /s /q ".venv"
   if exist ".venv" (
@@ -42,34 +42,45 @@ if exist ".venv" (
     goto :fail
   )
 )
-
 %PYTHON_CMD% -m venv .venv
 if errorlevel 1 goto :fail
 call ".venv\Scripts\activate.bat"
 
-echo [2/10] Installing backend dependencies...
+echo [2/13] Installing backend dependencies...
 python -m pip install --upgrade pip setuptools wheel
 if errorlevel 1 goto :fail
 python -m pip install -r apps\api\requirements-dev.txt
 if errorlevel 1 goto :fail
 
-echo [3/10] Installing pinned MediaPipe runtime...
+echo [3/13] Installing pinned MediaPipe runtime...
 python -m pip install -r apps\api\requirements-vision.txt
 if errorlevel 1 goto :vision_fail
 
-echo [4/10] Installing 50-word OpenVINO recognizer runtime...
+echo [4/13] Installing OpenVINO fallback recognizer...
 python -m pip install -r apps\api\requirements-bootstrap.txt
 if errorlevel 1 goto :model_fail
 
-echo [5/10] Downloading and verifying 50-word model assets...
+echo [5/13] Installing CPU PyTorch for official OpenHands INCLUDE...
+python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.5,<3"
+if errorlevel 1 goto :openhands_fail
+python -m pip install -r apps\api\requirements-openhands.txt
+if errorlevel 1 goto :openhands_fail
+
+echo [6/13] Downloading fallback 50-word model...
 python scripts\install_bootstrap.py
 if errorlevel 1 goto :model_fail
 
-echo [6/10] Processing a real frame through MediaPipe + OpenVINO recognition...
+echo [7/13] Downloading and converting official AI4Bharat OpenHands model...
+python scripts\install_openhands.py
+if errorlevel 1 goto :openhands_fail
+
+echo [8/13] Verifying MediaPipe + both recognizers...
 python scripts\smoke_live_runtime.py
 if errorlevel 1 goto :model_fail
+python scripts\smoke_openhands_runtime.py
+if errorlevel 1 goto :openhands_fail
 
-echo [7/10] Installing web dependencies...
+echo [9/13] Installing web dependencies...
 pushd apps\web
 call npm install
 if errorlevel 1 (
@@ -77,7 +88,7 @@ if errorlevel 1 (
   goto :fail
 )
 
-echo [8/10] Building production web app...
+echo [10/13] Building production web app...
 call npm run build
 if errorlevel 1 (
   popd
@@ -85,22 +96,24 @@ if errorlevel 1 (
 )
 popd
 
-echo [9/10] Running backend and ML tests...
+echo [11/13] Running backend and ML tests...
 python -m pytest apps\api\tests -q
 if errorlevel 1 goto :fail
 
-echo [10/10] Final full-runtime verification...
+echo [12/13] Checking full environment...
 set "PYTHONPATH=%CD%"
 python scripts\check_env.py
 if errorlevel 1 goto :fail
-python -c "from apps.api.app.runtime import model, perception; assert perception.available, perception.reason; assert model.loaded, model.load_error; assert len(model.labels)==50; print('Integrated SANKET runtime: OK -',model.backend,model.version)"
-if errorlevel 1 goto :fail
+
+echo [13/13] Verifying integrated model selection...
+python -c "from apps.api.app.runtime import model, perception; assert perception.available, perception.reason; assert model.loaded, model.load_error; assert model.backend=='ai4bharat_include_slgcn_pytorch', (model.backend,model.selection_reason); assert len(model.labels)==263; print('Integrated SANKET runtime: OK -',model.backend,model.version)"
+if errorlevel 1 goto :openhands_fail
 
 echo.
 echo ==========================================
 echo   SANKET AI FULL SETUP COMPLETE
 echo ==========================================
-echo Camera tracking + OpenVINO 50-word interpretation + backend + web passed.
+echo MediaPipe + official OpenHands INCLUDE SL-GCN + safe fallback + web passed.
 echo.
 
 if "%AUTO_MODE%"=="1" (
@@ -122,9 +135,15 @@ echo [ERROR] MediaPipe Solutions Holistic runtime could not be created.
 echo Expected: MediaPipe 0.10.21 + NumPy 1.26.4 + OpenCV 4.11.
 goto :fail
 
+:openhands_fail
+echo.
+echo [ERROR] The official AI4Bharat OpenHands INCLUDE recognizer could not be installed or loaded.
+echo Check your internet connection. SANKET has not replaced the existing fallback model.
+goto :fail
+
 :model_fail
 echo.
-echo [ERROR] The 50-word interpretation model could not be installed or loaded.
+echo [ERROR] The fallback interpretation model could not be installed or loaded.
 echo Check your internet connection, then double-click START_SANKET.bat again.
 goto :fail
 

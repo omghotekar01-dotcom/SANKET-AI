@@ -80,3 +80,23 @@ jobs:
         run: python scripts/install_bootstrap.py
       - name: Process real JPEG and run model inference on Windows
         run: python scripts/smoke_live_runtime.py
+
+  openhands-recognizer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install SANKET vision and OpenHands CPU runtime
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r apps/api/requirements-dev.txt
+          python -m pip install -r apps/api/requirements-vision.txt
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.5,<3"
+          python -m pip install -r apps/api/requirements-openhands.txt
+      - name: Install official AI4Bharat INCLUDE SL-GCN
+        run: python scripts/install_openhands.py
+      - name: Run full SL-GCN forward pass
+        run: python scripts/smoke_openhands_runtime.py

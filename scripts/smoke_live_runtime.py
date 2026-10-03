@@ -32,6 +32,7 @@ def main() -> int:
     result = perception.extract_jpeg(encoded.tobytes())
     assert result.vector.shape == (226,), result.vector.shape
     assert result.bootstrap_vector.shape == (378,), result.bootstrap_vector.shape
+    assert result.openhands_vector.shape == (54,), result.openhands_vector.shape
     perception.close()
 
     model = BootstrapKerasModel(settings.bootstrap_dir)

@@ -1,0 +1,3 @@
+# Compatibility layer used only to convert/load the official 2021 OpenHands checkpoint.
+# Torch itself is installed from PyTorch's CPU wheel index by setup_windows.bat.
+pytorch-lightning>=2.5,<3

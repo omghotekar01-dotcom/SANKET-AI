@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
 
 BOOTSTRAP_DIR = ROOT / "ml" / "artifacts" / "bootstrap-50"
 LOCAL_MODEL = ROOT / "ml" / "artifacts" / "demo-v1"
+OPENHANDS_DIR = ROOT / "ml" / "artifacts" / "openhands-include"
 
 
 def _version(name: str) -> str | None:
@@ -74,6 +75,11 @@ def main() -> int:
     print("protobuf     ", f"{'OK' if protobuf_ok else 'INCOMPATIBLE'} - {protobuf_version}")
     ok &= protobuf_ok
 
+    torch_version = _version("torch")
+    torch_ok = bool(torch_version)
+    print("torch        ", f"OK - {torch_version}" if torch_ok else "MISSING")
+    ok &= torch_ok
+
     bootstrap_model = BOOTSTRAP_DIR / "isl_model_solo.keras"
     bootstrap_manifest = BOOTSTRAP_DIR / "manifest.json"
     bootstrap_ok = bootstrap_model.exists() and bootstrap_model.stat().st_size == 9_783_895
@@ -86,6 +92,25 @@ def main() -> int:
             labels_ok = False
     print("50-word model", "OK" if bootstrap_ok and labels_ok else "MISSING/INVALID")
     ok &= bootstrap_ok and labels_ok
+
+    openhands_state = OPENHANDS_DIR / "state_dict.pt"
+    openhands_manifest = OPENHANDS_DIR / "manifest.json"
+    openhands_assets_ok = openhands_state.exists() and openhands_manifest.exists()
+    print("OpenHands pack", "OK" if openhands_assets_ok else "MISSING")
+    ok &= openhands_assets_ok
+
+    try:
+        from apps.api.app.services.openhands_include_model import OpenHandsIncludeModel
+        openhands_model = OpenHandsIncludeModel(OPENHANDS_DIR)
+        openhands_runtime_ok = openhands_model.loaded and len(openhands_model.labels) == 263
+        print(
+            "OpenHands run ",
+            f"OK - {openhands_model.version}" if openhands_runtime_ok else f"ERROR - {openhands_model.load_error}",
+        )
+        ok &= openhands_runtime_ok
+    except Exception as exc:
+        print("OpenHands run  ERROR", exc)
+        ok = False
 
     try:
         from apps.api.app.services.bootstrap_model import BootstrapKerasModel
