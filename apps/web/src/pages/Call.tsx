@@ -26,7 +26,7 @@ export function Call({language}:{language:LanguageMode}){
   useEffect(()=>cleanup,[])
 
   const startSanketCaptions=(media:MediaStream)=>{
-    const rec=new WebSocket(`${WS_BASE}/ws/recognize`);rec.binaryType='arraybuffer';recognitionWs.current=rec
+    const rec=new WebSocket(`${WS_BASE}/ws/recognize?recognition_scope=core_safe`);rec.binaryType='arraybuffer';recognitionWs.current=rec
     rec.onmessage=async raw=>{
       const m=JSON.parse(raw.data)
       if(m.type==='ready')setCaptionState(m.model_loaded&&m.perception_available?'SANKET captions ready':'SANKET captions unavailable: model/perception not ready')

@@ -327,3 +327,8 @@ html[data-reduce-motion="1"] *,html[data-reduce-motion="1"] *::before,html[data-
   .language-control span,.language-active{display:none}
   .language-control select{min-width:104px;max-width:128px}
 }
+
+.model-provenance.safe-mode{border-color:#315843;background:#101a15}
+.model-provenance.safe-mode .model-provenance-badge{color:#b9e4cc;border-color:#315843;background:#15251d}
+.model-provenance.experimental-mode{border-color:#624e2b;background:#1d1810}
+.model-provenance.experimental-mode .model-provenance-badge{color:#e7c87f;border-color:#624e2b;background:#2a2112}

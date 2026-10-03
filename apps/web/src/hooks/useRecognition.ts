@@ -8,8 +8,14 @@ const EMPTY_TRACKING: TrackingInfo = {left_hand:false,right_hand:false,pose:fals
 export type BackendState = 'checking' | 'online' | 'offline'
 export type CapabilityState = 'unknown' | 'ready' | 'unavailable'
 export type ModelState = 'unknown' | 'loaded' | 'missing'
+export type RecognitionScope = 'core_safe' | 'experimental_50'
 
-export function useRecognition(domain: string, collectorId?: string | null, language: LanguageMode='en') {
+export function useRecognition(
+  domain: string,
+  collectorId?: string | null,
+  language: LanguageMode='en',
+  recognitionScope: RecognitionScope='core_safe',
+) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const overlayRef = useRef<HTMLCanvasElement | null>(null)
   const captureRef = useRef<HTMLCanvasElement | null>(null)
@@ -41,8 +47,13 @@ export function useRecognition(domain: string, collectorId?: string | null, lang
     setModelBackend(String(data?.model_backend || 'none'))
     setModelSource(String(data?.model_source || 'none'))
     setModelIsBootstrap(Boolean(data?.model_is_bootstrap))
-    setModelVocabularySize(Number(data?.model_vocabulary_size || 0))
-  },[])
+    const safeSize=Number(data?.safe_core_vocabulary_size || 0)
+    setModelVocabularySize(
+      recognitionScope==='core_safe' && Boolean(data?.model_is_bootstrap) && safeSize
+        ? safeSize
+        : Number(data?.model_vocabulary_size || 0)
+    )
+  },[recognitionScope])
 
   const applyHealth = useCallback((health:any) => {
     setBackendState('online')
@@ -112,8 +123,10 @@ export function useRecognition(domain: string, collectorId?: string | null, lang
       old.close()
     }
 
-    const query=collectorId ? `?collector_id=${encodeURIComponent(collectorId)}` : ''
-    const ws=new WebSocket(`${WS_BASE}/ws/recognize${query}`)
+    const params=new URLSearchParams()
+    if(collectorId)params.set('collector_id',collectorId)
+    params.set('recognition_scope',recognitionScope)
+    const ws=new WebSocket(`${WS_BASE}/ws/recognize?${params.toString()}`)
     ws.binaryType='arraybuffer'
     wsRef.current=ws
     setSocketState('connecting')
@@ -156,8 +169,10 @@ export function useRecognition(domain: string, collectorId?: string | null, lang
           setMessage(event.perception_reason || 'Vision runtime is not ready. Run START_SANKET.bat again.')
         } else if (!event.model_loaded) {
           setMessage('Vision is ready, but no recognition model is loaded.')
+        } else if (event.model_is_bootstrap && event.recognition_scope==='core_safe') {
+          setMessage(`Ready — Reliable Core mode active (${event.model_vocabulary_size || 8} signs). Unrelated bootstrap classes are rejected, not guessed.`)
         } else if (event.model_is_bootstrap) {
-          setMessage(`Ready — verified bootstrap recognizer active (${event.model_vocabulary_size || 50} signs).`)
+          setMessage(`Ready — Experimental 50-word bootstrap active (${event.model_vocabulary_size || 50} signs).`)
         } else {
           setMessage(`Ready — local SANKET recognizer active (${event.model_vocabulary_size || 0} signs).`)
         }
@@ -204,11 +219,11 @@ export function useRecognition(domain: string, collectorId?: string | null, lang
         }
       }
     }
-  },[collectorId,domain,drawOverlay,speak])
+  },[collectorId,domain,drawOverlay,speak,recognitionScope])
 
   useEffect(()=>{
     if (running) connectSocket()
-  },[collectorId])
+  },[collectorId,recognitionScope])
 
   useEffect(()=>{
     if (wsRef.current?.readyState===WebSocket.OPEN) {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../lib/api'
-import { useRecognition } from '../hooks/useRecognition'
+import { useRecognition, type RecognitionScope } from '../hooks/useRecognition'
 import { CameraStage } from '../components/CameraStage'
 import { StatusCard } from '../components/StatusCard'
 import { Transcript } from '../components/Transcript'
@@ -25,7 +25,8 @@ export function Interpreter({language}:{language:LanguageMode}) {
   const [feedbackStatus,setFeedbackStatus]=useState('')
   const [showCorrection,setShowCorrection]=useState(false)
   const [correction,setCorrection]=useState('')
-  const r=useRecognition(domain,null,language)
+  const [recognitionScope,setRecognitionScope]=useState<RecognitionScope>('core_safe')
+  const r=useRecognition(domain,null,language,recognitionScope)
 
   useEffect(()=>{api<Array<{id:string;label:string}>>('/api/domains').then(setDomains).catch(()=>{})},[])
 
@@ -33,18 +34,18 @@ export function Interpreter({language}:{language:LanguageMode}) {
     if(r.backendState!=='online')return
     api<any>('/api/signs')
       .then(data=>{
-        const signs=Array.isArray(data.live_vocabulary)?data.live_vocabulary:[]
+        const signs=recognitionScope==='experimental_50'
+          ?(Array.isArray(data.experimental_vocabulary)?data.experimental_vocabulary:[])
+          :(Array.isArray(data.safe_live_vocabulary)?data.safe_live_vocabulary:[])
         setLiveSigns(signs)
         setCoreVocabulary(Array.isArray(data.core_vocabulary)?data.core_vocabulary:[])
         setCoreSupported(Array.isArray(data.core_supported)?data.core_supported:[])
         setCoreMissing(Array.isArray(data.core_missing)?data.core_missing:[])
-        if(!testTarget && signs.length){
-          const hello=signs.find((s:string)=>s.toLowerCase()==='hello')
-          setTestTarget(hello || signs[0])
-        }
+        const hello=signs.find((s:string)=>s.toLowerCase()==='hello')
+        setTestTarget(prev=>signs.includes(prev)?prev:(hello || signs[0] || ''))
       })
       .catch(()=>setLiveSigns([]))
-  },[r.backendState,r.modelBackend,r.modelVocabularySize])
+  },[r.backendState,r.modelBackend,r.modelVocabularySize,recognitionScope])
 
   useEffect(()=>{
     if(!testTarget || r.prediction?.state!=='ACCEPTED' || !r.prediction.display_text)return
@@ -132,9 +133,10 @@ export function Interpreter({language}:{language:LanguageMode}) {
     if(r.prediction?.state==='NEED_REPEAT')return 'Please repeat the sign'
     if(r.prediction?.state==='TRACKING_LOST')return 'Move back into frame'
     if(r.prediction?.state==='NO_SIGN')return 'Ready for your next sign'
-    if(r.modelIsBootstrap)return `Bootstrap recognizer · ${r.modelVocabularySize} signs`
+    if(r.modelIsBootstrap&&recognitionScope==='core_safe')return `Reliable Core · ${r.modelVocabularySize} signs`
+    if(r.modelIsBootstrap)return `Experimental bootstrap · ${r.modelVocabularySize} signs`
     return 'Local SANKET recognizer'
-  },[r.backendState,r.perceptionState,r.modelState,r.modelIsBootstrap,r.modelVocabularySize,r.prediction])
+  },[r.backendState,r.perceptionState,r.modelState,r.modelIsBootstrap,r.modelVocabularySize,r.prediction,recognitionScope])
 
   return <div className="interpreter-page">
     <header className="session-header">
@@ -145,6 +147,17 @@ export function Interpreter({language}:{language:LanguageMode}) {
       </div>
       <div className="session-header-actions">
         <HealthPill state={r.backendState}/>
+        <label className="context-control">Recognition
+          <select value={recognitionScope} onChange={e=>{
+            setRecognitionScope(e.target.value as RecognitionScope)
+            setTestState('idle')
+            setTestDetected('')
+            setTestConfidence(null)
+          }}>
+            <option value="core_safe">Reliable Core</option>
+            <option value="experimental_50">Experimental 50</option>
+          </select>
+        </label>
         <label className="context-control">Context
           <select value={domain} onChange={e=>setDomain(e.target.value)}>
             {domains.length?domains.map(d=><option key={d.id} value={d.id}>{d.label}</option>):<option value="general">General</option>}
@@ -155,9 +168,13 @@ export function Interpreter({language}:{language:LanguageMode}) {
 
     {demoActive&&<div className="demo-banner" role="status"><span className="demo-dot"/> <strong>Labelled replay</strong><span>{demoState}</span><button className="text-button" onClick={()=>setDemoActive(false)}>Dismiss</button></div>}
 
-    {r.modelIsBootstrap&&<div className="model-provenance">
-      <span className="model-provenance-badge">Bootstrap model</span>
-      <span>50-word temporal ISL recognizer is active. These MIT-licensed external weights are a starting model; a SANKET-trained local model replaces them only after its held-out evaluation clears the project quality gate.</span>
+    {r.modelIsBootstrap&&recognitionScope==='core_safe'&&<div className="model-provenance safe-mode">
+      <span className="model-provenance-badge">Reliable Core</span>
+      <span>Recommended mode. Only 8 bootstrap labels that overlap SANKET's required core contract may be spoken. If HAPPY or another experimental class wins internally, SANKET rejects the frame as NEED_REPEAT instead of guessing.</span>
+    </div>}
+    {r.modelIsBootstrap&&recognitionScope==='experimental_50'&&<div className="model-provenance experimental-mode">
+      <span className="model-provenance-badge">Experimental 50</span>
+      <span>Broad external 50-class mode. It is available for exploration but can misclassify unfamiliar signing and is not recommended for the hackathon demo.</span>
     </div>}
 
     <div className="studio-layout">
@@ -215,13 +232,13 @@ export function Interpreter({language}:{language:LanguageMode}) {
           <ReadinessRow
             label="Sign model"
             state={r.modelState==='loaded'?'ready':r.modelState==='missing'?'error':'pending'}
-            value={r.modelState==='loaded'?(r.modelIsBootstrap?`Bootstrap · ${r.modelVocabularySize}`:`Local · ${r.modelVocabularySize}`):r.modelState==='missing'?'Unavailable':'Waiting for API'}
+            value={r.modelState==='loaded'?(r.modelIsBootstrap?(recognitionScope==='core_safe'?`Reliable Core · ${r.modelVocabularySize}`:`Experimental · ${r.modelVocabularySize}`):`Local · ${r.modelVocabularySize}`):r.modelState==='missing'?'Unavailable':'Waiting for API'}
           />
           <ReadinessRow label="Tracking" state={r.landmarkLatency?'ready':'pending'} value={r.landmarkLatency?`${r.landmarkLatency.toFixed(0)} ms`:'—'}/>
 
           {r.backendState==='offline'&&<p className="readiness-help">Close this browser tab and double-click <code>START_SANKET.bat</code>.</p>}
           {r.backendState==='online'&&r.perceptionState==='unavailable'&&<p className="readiness-help">Double-click <code>START_SANKET.bat</code>; the launcher repairs the verified Holistic runtime automatically.</p>}
-          {r.modelIsBootstrap&&<p className="readiness-help">Active source: <b>{r.modelSource}</b>. Use Training Studio when you want a project-specific recognizer trained from your own consented data.</p>}
+          {r.modelIsBootstrap&&<p className="readiness-help">Active source: <b>{r.modelSource}</b>. Reliable Core is recommended because unrelated external classes are suppressed rather than spoken.</p>}
         </section>
 
 
