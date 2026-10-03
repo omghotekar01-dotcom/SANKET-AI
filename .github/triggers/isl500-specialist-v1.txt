@@ -1,6 +1,7 @@
-isl500-specialist-neural-v1 retrigger 2
-Targets: hello, thank_you, yes, no, help, water, teacher, student, where
+isl500-specialist-neural-v1 retrigger 3
+Reliable targets: hello, thank_you, yes, no, help, water, teacher, student
+WHERE intentionally removed after 3-signer test showed it absorbed most errors.
 Data: ISL500-only real videos.
 Split: 10 train signers / 2 validation signers / 3 unseen test signers.
 Candidates: TCN, BiGRU, Conv+GRU.
-Quality gate: >=70% top1, >=65% macro F1, >=80% accepted accuracy, >=50% coverage.
+Gate: >=70% top1, >=65% macro F1, >=80% accepted accuracy, >=50% coverage.

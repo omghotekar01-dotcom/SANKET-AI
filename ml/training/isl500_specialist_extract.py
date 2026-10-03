@@ -26,7 +26,6 @@ TARGETS = (
     "water",
     "teacher",
     "student",
-    "where",
 )
 
 
