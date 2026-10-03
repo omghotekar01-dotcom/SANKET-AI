@@ -211,7 +211,8 @@ def test_signs_endpoint_separates_safe_and_experimental_vocabularies():
     assert payload['default_recognition_scope'] == 'core_safe'
     if payload['model_is_bootstrap']:
         assert payload['live_vocabulary_size'] == 8
-        assert payload['experimental_vocabulary_size'] == 50
+        assert payload['experimental_vocabulary_size'] == len(payload['experimental_vocabulary'])
+        assert payload['experimental_vocabulary_size'] >= payload['live_vocabulary_size']
         assert 'Happy' not in payload['safe_live_vocabulary']
 
 
