@@ -1,0 +1,35 @@
+name: Inspect OpenHands INCLUDE checkpoint
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/triggers/openhands-include-inspect.txt"
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download official AI4Bharat assets
+        run: |
+          mkdir -p /tmp/openhands
+          curl -L --fail --retry 3             -o /tmp/openhands/include_slgcn.zip             https://github.com/AI4Bharat/OpenHands/releases/download/checkpoints_v1/include_slgcn.zip
+          curl -L --fail --retry 3             -o /tmp/openhands/include_metadata.zip             https://github.com/AI4Bharat/OpenHands/releases/download/checkpoints_v1/include_metadata.zip
+      - name: Inspect checkpoint archive
+        run: |
+          echo "=== SL-GCN archive ==="
+          unzip -l /tmp/openhands/include_slgcn.zip
+          echo "=== Metadata archive ==="
+          unzip -l /tmp/openhands/include_metadata.zip
+          mkdir -p /tmp/openhands/slgcn /tmp/openhands/meta
+          unzip -q /tmp/openhands/include_slgcn.zip -d /tmp/openhands/slgcn
+          unzip -q /tmp/openhands/include_metadata.zip -d /tmp/openhands/meta
+          echo "=== Extracted files ==="
+          find /tmp/openhands -maxdepth 4 -type f -printf "%p %s bytes\n" | sort
+          echo "=== Configs ==="
+          find /tmp/openhands/slgcn -type f \( -name "*.yaml" -o -name "*.yml" -o -name "*.json" \) -print -exec sed -n '1,260p' {} \;
+          echo "=== Metadata text/json/csv ==="
+          find /tmp/openhands/meta -type f \( -name "*.json" -o -name "*.csv" -o -name "*.txt" \) -print -exec sed -n '1,260p' {} \;

@@ -1,0 +1,3 @@
+retry-openhands-include-slgcn-inspect-v1
+Official source: AI4Bharat/OpenHands checkpoints_v1.
+Goal: inspect config, checkpoint filename and INCLUDE class mapping before integration.
