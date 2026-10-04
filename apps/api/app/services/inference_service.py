@@ -63,6 +63,7 @@ class RecognitionSession:
         self._await_idle = False
         self._idle_frames = 0
         self._pre_roll: deque[np.ndarray] = deque(maxlen=4)
+        self._segment_activity: list[float] = []
 
     def reset(self) -> None:
         self.frames.clear()
@@ -77,6 +78,7 @@ class RecognitionSession:
         self._await_idle = False
         self._idle_frames = 0
         self._pre_roll.clear()
+        self._segment_activity.clear()
 
     def set_domain(self, domain: str) -> None:
         self.domain = domain
@@ -105,6 +107,11 @@ class RecognitionSession:
                 self._last_vector = None
                 self._candidate = None
                 self._stable_count = 0
+                self._segment_active = False
+                self._await_idle = False
+                self._idle_frames = 0
+                self._pre_roll.clear()
+                self._segment_activity.clear()
                 return self._no_sign_event(tracking, "Ready for a sign")
             return None
 
@@ -138,10 +145,13 @@ class RecognitionSession:
                 self.frames.clear()
                 for item in self._pre_roll:
                     self.frames.append(item)
+                self._segment_activity = [delta]
                 self._segment_active = True
                 return None
 
             self.frames.append(vector)
+            if delta is not None:
+                self._segment_activity.append(delta)
         else:
             self.frames.append(vector)
 
@@ -169,7 +179,11 @@ class RecognitionSession:
         top_idx = int(order[0])
         label = pred.labels[top_idx]
         confidence = float(probs[top_idx])
-        activity = float(np.mean(self._activity)) if self._activity else 0.0
+        activity = (
+            float(max(self._segment_activity))
+            if self._segment_mode and self._segment_activity
+            else (float(np.mean(self._activity)) if self._activity else 0.0)
+        )
 
         gate = decide(
             float(tracking.get("quality", 0)),
@@ -247,5 +261,6 @@ class RecognitionSession:
             self._await_idle = True
             self._idle_frames = 0
             self._pre_roll.clear()
+            self._segment_activity.clear()
 
         return event
