@@ -1,3 +1,4 @@
-openhands-semantic-eval-v4
-Release gate: exact upstream preprocessing, 24 observed frames temporally interpolated to 80 model frames.
-Requires >=80% top1 and >=95% top5 on >=6 real labeled INCLUDE reference clips.
+openhands-semantic-release-v5
+Final release semantic gate after isolated-segment state reset fix.
+Reference condition: exact upstream MediaPipe preprocessing, 24 observed frames interpolated to 80 model frames.
+Requires >=80% top1 and >=95% top5 on >=6 available real labeled INCLUDE clips.
