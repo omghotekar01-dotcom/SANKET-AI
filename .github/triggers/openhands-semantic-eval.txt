@@ -1,0 +1,3 @@
+openhands-semantic-eval-v1
+Evaluate real labeled INCLUDE clips for Safe Core signs.
+Compare exact upstream MediaPipe model_complexity=2, current complexity=1, and horizontal flip.

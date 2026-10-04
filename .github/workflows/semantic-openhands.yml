@@ -1,0 +1,30 @@
+name: Semantic OpenHands INCLUDE check
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/triggers/openhands-semantic-eval.txt"
+
+jobs:
+  semantic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install semantic evaluation stack
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r apps/api/requirements-dev.txt
+          python -m pip install -r apps/api/requirements-vision.txt
+          python -m pip install -r apps/api/requirements-public-train.txt
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.5,<3"
+          python -m pip install -r apps/api/requirements-openhands.txt
+      - name: Install official OpenHands model
+        run: python scripts/install_openhands.py
+      - name: Evaluate real labeled INCLUDE clips
+        run: python scripts/evaluate_openhands_semantic.py
