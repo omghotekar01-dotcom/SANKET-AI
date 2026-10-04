@@ -113,9 +113,18 @@ def select():
     return chosen
 
 
+def _uniform(seq: np.ndarray, count: int) -> np.ndarray:
+    if len(seq) <= count:
+        return seq
+    idx=np.linspace(0,len(seq)-1,count,dtype=int)
+    return seq[idx]
+
+
 def evaluate(model,chosen,complexity:int,flip:bool):
     extractor=Extractor(complexity,flip)
-    total=0;top1=0;top5=0;details=[]
+    variants=("full","u12","u16","u20","u24","u32","last20","last24")
+    stats={name:{"total":0,"top1":0,"top5":0} for name in variants}
+    details=[]
     try:
         for expected,items in chosen.items():
             for row in items:
@@ -123,30 +132,47 @@ def evaluate(model,chosen,complexity:int,flip:bool):
                 seq=extractor.video(local)
                 if seq is None:
                     continue
-                pred=model.predict(seq)
-                order=np.argsort(pred.probabilities)[::-1]
-                labels=[canonical(pred.labels[int(i)]) for i in order[:5]]
-                conf=[float(pred.probabilities[int(i)]) for i in order[:5]]
-                total+=1
-                top1+=int(labels[0]==expected)
-                top5+=int(expected in labels)
-                details.append({
-                    "expected":expected,
-                    "top5":list(zip(labels,[round(x,4) for x in conf])),
-                    "frames":len(seq),
-                    "path":row["video_path"],
-                })
+                sequences={
+                    "full":seq,
+                    "u12":_uniform(seq,12),
+                    "u16":_uniform(seq,16),
+                    "u20":_uniform(seq,20),
+                    "u24":_uniform(seq,24),
+                    "u32":_uniform(seq,32),
+                    "last20":seq[-20:] if len(seq)>=20 else seq,
+                    "last24":seq[-24:] if len(seq)>=24 else seq,
+                }
+                item={"expected":expected,"frames":len(seq),"path":row["video_path"],"variants":{}}
+                for name,candidate in sequences.items():
+                    pred=model.predict(candidate)
+                    order=np.argsort(pred.probabilities)[::-1]
+                    labels=[canonical(pred.labels[int(i)]) for i in order[:5]]
+                    conf=[float(pred.probabilities[int(i)]) for i in order[:5]]
+                    stats[name]["total"]+=1
+                    stats[name]["top1"]+=int(labels[0]==expected)
+                    stats[name]["top5"]+=int(expected in labels)
+                    item["variants"][name]={
+                        "top1":labels[0],
+                        "confidence":round(conf[0],4),
+                        "expected_rank":(labels.index(expected)+1 if expected in labels else None),
+                    }
+                details.append(item)
     finally:
         extractor.close()
+    summary={}
+    for name,v in stats.items():
+        total=v["total"]
+        summary[name]={
+            "samples":total,
+            "top1":v["top1"]/total if total else 0.0,
+            "top5":v["top5"]/total if total else 0.0,
+        }
     return {
         "complexity":complexity,
         "flip":flip,
-        "samples":total,
-        "top1":top1/total if total else 0.0,
-        "top5":top5/total if total else 0.0,
+        "summary":summary,
         "details":details,
     }
-
 
 def main():
     model=OpenHandsIncludeModel(settings.openhands_dir)
@@ -159,7 +185,10 @@ def main():
     ]
     print("SEMANTIC_RESULTS")
     print(json.dumps(results,indent=2))
-    best=max(results,key=lambda x:(x["top1"],x["top5"]))
+    best=max(
+        (row for result in results for row in result["summary"].values()),
+        key=lambda x:(x["top1"],x["top5"]),
+    )
     # This probe is diagnostic; fail only if we could not obtain real samples.
     assert best["samples"]>=4,best
     return 0
