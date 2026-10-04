@@ -232,3 +232,63 @@ def test_openhands_minimal_landmark_layout_has_27_nodes():
     from apps.api.app.services.landmark_service import OPENHANDS_MINIMAL_27_INDICES
     assert len(OPENHANDS_MINIMAL_27_INDICES) == 27
     assert max(OPENHANDS_MINIMAL_27_INDICES) == 74
+
+
+def test_openhands_temporal_interpolation_restores_model_density():
+    from apps.api.app.services.openhands_include_model import OpenHandsIncludeModel
+    seq = np.stack([
+        np.linspace(0.0, 1.0, 54, dtype=np.float32) + i
+        for i in range(24)
+    ])
+    dense = OpenHandsIncludeModel._temporal_interpolate(seq, 80)
+    assert dense.shape == (80, 54)
+    assert np.allclose(dense[0], seq[0])
+    assert np.allclose(dense[-1], seq[-1])
+
+
+class _FakeOpenHands:
+    loaded = True
+    is_bootstrap = True
+    input_schema = "openhands"
+    sequence_length = 24
+    version = "fake-openhands"
+    schema_version = "fake-openhands-schema"
+    tracking_threshold = 0.1
+    motion_threshold = 0.0008
+    accept_threshold = 0.60
+    margin_threshold = 0.06
+    labels = ["Hello", "Doctor"]
+
+    def __init__(self):
+        self.calls = 0
+        self.last_shape = None
+
+    def predict(self, sequence):
+        self.calls += 1
+        self.last_shape = sequence.shape
+        return _FixedPrediction(self.labels, [0.92, 0.08])
+
+
+def test_openhands_session_captures_one_isolated_motion_segment():
+    from apps.api.app.services.inference_service import RecognitionSession
+    fake = _FakeOpenHands()
+    session = RecognitionSession(fake, allowed_labels={"hello", "doctor"})
+    tracking = {"left_hand":True,"right_hand":False,"pose":True,"face":True,"quality":1.0}
+
+    base = np.zeros(54, dtype=np.float32)
+    for _ in range(5):
+        assert session.push(base.copy(), tracking) is None
+    assert fake.calls == 0
+
+    event = None
+    for i in range(30):
+        frame = np.full(54, (i + 1) * 0.01, dtype=np.float32)
+        result = session.push(frame, tracking)
+        if result is not None:
+            event = result
+            break
+    assert event is not None
+    assert event.state == RecognitionState.ACCEPTED
+    assert event.label == "Hello"
+    assert fake.calls == 1
+    assert fake.last_shape == (24, 54)

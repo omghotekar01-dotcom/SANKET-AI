@@ -22,7 +22,11 @@ class OpenHandsIncludeModel:
     source = "AI4Bharat/OpenHands INCLUDE SL-GCN"
     is_bootstrap = True
     input_schema = "openhands"
-    sequence_length = 48
+    # Live browser sends ~10 observations/sec. The benchmarked adapter collects
+    # one ~2.4 s isolated sign and restores the temporal density expected by
+    # the original INCLUDE SL-GCN before inference.
+    sequence_length = 24
+    model_frame_count = 80
     schema_version = "openhands-mediapipe-holistic-minimal-27-v1"
     accept_threshold = 0.62
     margin_threshold = 0.10
@@ -116,6 +120,21 @@ class OpenHandsIncludeModel:
             return False
 
     @staticmethod
+    def _temporal_interpolate(sequence: np.ndarray, count: int = 80) -> np.ndarray:
+        if sequence.ndim != 2:
+            raise ValueError(f"expected 2D temporal sequence, got {sequence.shape}")
+        if len(sequence) == count:
+            return sequence.astype(np.float32, copy=True)
+        if len(sequence) < 2:
+            return np.repeat(sequence, count, axis=0).astype(np.float32)
+        old = np.linspace(0.0, 1.0, len(sequence), dtype=np.float32)
+        new = np.linspace(0.0, 1.0, count, dtype=np.float32)
+        out = np.empty((count, sequence.shape[1]), dtype=np.float32)
+        for column in range(sequence.shape[1]):
+            out[:, column] = np.interp(new, old, sequence[:, column])
+        return out
+
+    @staticmethod
     def _normalize_clip(sequence: np.ndarray) -> np.ndarray:
         if sequence.ndim != 2 or sequence.shape[1] != 54:
             raise ValueError(f"expected [time,54] OpenHands pose sequence, got {sequence.shape}")
@@ -132,7 +151,8 @@ class OpenHandsIncludeModel:
         if not self.loaded or self._network is None or self._torch is None:
             raise RuntimeError(self.load_error or "OpenHands INCLUDE model is not loaded")
 
-        points = self._normalize_clip(sequence)
+        dense = self._temporal_interpolate(sequence, self.model_frame_count)
+        points = self._normalize_clip(dense)
         x = self._torch.from_numpy(points).permute(2, 0, 1).unsqueeze(0).contiguous()
         with self._torch.inference_mode():
             logits = self._network(x)

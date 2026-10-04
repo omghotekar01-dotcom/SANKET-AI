@@ -40,11 +40,13 @@ class RecognitionSession:
         if config is None:
             bootstrap = bool(getattr(model, "is_bootstrap", False))
             sequence_length = model.sequence_length if model.loaded else 48
+            segment_mode = bool(getattr(model, "input_schema", "") == "openhands")
             config = DecoderConfig(
                 sequence_length=sequence_length,
                 minimum_frames=sequence_length if bootstrap else min(20, sequence_length),
-                stable_predictions=3 if bootstrap else 2,
-                cooldown_frames=10,
+                stable_predictions=1 if segment_mode else (3 if bootstrap else 2),
+                cooldown_frames=0 if segment_mode else 10,
+                no_hand_reset_frames=3 if segment_mode else 5,
             )
 
         self.config = config
@@ -56,6 +58,11 @@ class RecognitionSession:
         self._cooldown = 0
         self._last_accepted: str | None = None
         self._no_hand_frames = 0
+        self._segment_mode = bool(getattr(model, "input_schema", "") == "openhands")
+        self._segment_active = False
+        self._await_idle = False
+        self._idle_frames = 0
+        self._pre_roll: deque[np.ndarray] = deque(maxlen=4)
 
     def reset(self) -> None:
         self.frames.clear()
@@ -66,6 +73,10 @@ class RecognitionSession:
         self._cooldown = 0
         self._last_accepted = None
         self._no_hand_frames = 0
+        self._segment_active = False
+        self._await_idle = False
+        self._idle_frames = 0
+        self._pre_roll.clear()
 
     def set_domain(self, domain: str) -> None:
         self.domain = domain
@@ -99,10 +110,40 @@ class RecognitionSession:
 
         self._no_hand_frames = 0
 
+        delta = None
         if self._last_vector is not None:
-            self._activity.append(float(np.mean(np.abs(vector - self._last_vector))))
+            delta = float(np.mean(np.abs(vector - self._last_vector)))
+            self._activity.append(delta)
         self._last_vector = vector
-        self.frames.append(vector)
+
+        if self._segment_mode:
+            start_threshold = max(float(self.model.motion_threshold) * 0.75, 0.00035)
+            idle_threshold = max(float(self.model.motion_threshold) * 0.45, 0.00020)
+
+            if self._await_idle:
+                if delta is not None and delta <= idle_threshold:
+                    self._idle_frames += 1
+                else:
+                    self._idle_frames = 0
+                if self._idle_frames >= 3:
+                    self._await_idle = False
+                    self._idle_frames = 0
+                    self._pre_roll.clear()
+                return None
+
+            if not self._segment_active:
+                self._pre_roll.append(vector)
+                if delta is None or delta < start_threshold:
+                    return None
+                self.frames.clear()
+                for item in self._pre_roll:
+                    self.frames.append(item)
+                self._segment_active = True
+                return None
+
+            self.frames.append(vector)
+        else:
+            self.frames.append(vector)
 
         if self._cooldown > 0:
             self._cooldown -= 1
@@ -177,7 +218,7 @@ class RecognitionSession:
             for i in alternative_indices
         ]
 
-        return PredictionEvent(
+        event = PredictionEvent(
             state=gate.state,
             label=label if gate.state == RecognitionState.ACCEPTED else None,
             display_text=(
@@ -194,3 +235,17 @@ class RecognitionSession:
             model_version=self.model.version,
             feature_schema=self.model.schema_version or "unknown",
         )
+
+        if self._segment_mode:
+            # One isolated sign -> one decision. Require a short idle pause before
+            # arming the next segment so a held sign cannot be repeatedly emitted.
+            self.frames.clear()
+            self._activity.clear()
+            self._candidate = None
+            self._stable_count = 0
+            self._segment_active = False
+            self._await_idle = True
+            self._idle_frames = 0
+            self._pre_roll.clear()
+
+        return event

@@ -170,7 +170,7 @@ export function useRecognition(
         } else if (!event.model_loaded) {
           setMessage('Vision is ready, but no recognition model is loaded.')
         } else if (event.model_is_bootstrap && event.recognition_scope==='core_safe') {
-          setMessage(`Ready — Reliable Core mode active (${event.model_vocabulary_size || 8} signs). Unrelated bootstrap classes are rejected, not guessed.`)
+          setMessage(`Ready — Reliable Core. Start neutral, perform one sign naturally for about 2 seconds, then return neutral.`)
         } else if (event.model_is_bootstrap) {
           setMessage(`Ready — Experimental 50-word bootstrap active (${event.model_vocabulary_size || 50} signs).`)
         } else {
@@ -184,6 +184,10 @@ export function useRecognition(
         setTracking(t.tracking)
         setLandmarkLatency(t.landmark_latency_ms)
         drawOverlay(t)
+        return
+      }
+
+      if (event.type==='frame_done') {
         busyRef.current=false
         return
       }
@@ -206,7 +210,6 @@ export function useRecognition(
         const p=event as PredictionEvent
         setPrediction(p)
         setMessage(p.reason || p.state)
-        busyRef.current=false
         if (p.state==='ACCEPTED' && p.display_text) {
           setTranscript(prev=>[...prev,{
             id:crypto.randomUUID(),

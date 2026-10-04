@@ -170,7 +170,7 @@ export function Interpreter({language}:{language:LanguageMode}) {
 
     {r.modelIsBootstrap&&recognitionScope==='core_safe'&&<div className="model-provenance safe-mode">
       <span className="model-provenance-badge">Reliable Core</span>
-      <span>Recommended mode. Only 8 bootstrap labels that overlap SANKET's required core contract may be spoken. If HAPPY or another experimental class wins internally, SANKET rejects the frame as NEED_REPEAT instead of guessing.</span>
+      <span>Recommended isolated-sign mode. Start from a neutral pose, perform one complete sign naturally for about 2 seconds, then return neutral. SANKET captures one motion segment, restores the temporal density used by the INCLUDE model, and rejects unrelated classes instead of guessing.</span>
     </div>}
     {r.modelIsBootstrap&&recognitionScope==='experimental_50'&&<div className="model-provenance experimental-mode">
       <span className="model-provenance-badge">Experimental 50</span>

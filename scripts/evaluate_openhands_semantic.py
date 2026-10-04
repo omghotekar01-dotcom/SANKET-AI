@@ -217,12 +217,11 @@ def main():
     ]
     print("SEMANTIC_RESULTS")
     print(json.dumps(results,indent=2))
-    best=max(
-        (row for result in results for row in result["summary"].values()),
-        key=lambda x:(x["top1"],x["top5"]),
-    )
-    # This probe is diagnostic; fail only if we could not obtain real samples.
-    assert best["samples"]>=4,best
+    exact=next(result for result in results if result["complexity"]==2 and result["flip"] is False)
+    verified=exact["summary"]["u24_i80"]
+    assert verified["samples"]>=6, verified
+    assert verified["top1"]>=0.80, verified
+    assert verified["top5"]>=0.95, verified
     return 0
 
 

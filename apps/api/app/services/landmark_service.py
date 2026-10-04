@@ -76,7 +76,7 @@ class HolisticLandmarkService:
         try:
             self._holistic = mp_holistic.Holistic(
                 static_image_mode=False,
-                model_complexity=1,
+                model_complexity=2,
                 smooth_landmarks=True,
                 enable_segmentation=False,
                 refine_face_landmarks=False,

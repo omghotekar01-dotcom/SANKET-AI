@@ -134,6 +134,10 @@ async def recognition_socket(websocket: WebSocket):
                 if event is not None:
                     await websocket.send_json(event.model_dump(mode="json"))
 
+                # Explicit back-pressure acknowledgement: the browser may send
+                # the next frame only after perception + model inference finish.
+                await websocket.send_json({"type": "frame_done"})
+
             elif message.get("text") is not None:
                 try:
                     payload = json.loads(message["text"])

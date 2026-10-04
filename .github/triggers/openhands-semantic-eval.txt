@@ -1,3 +1,3 @@
-openhands-semantic-eval-v3
-Test temporal-density adaptation for live 10 FPS:
-downsample real INCLUDE clips to 20/24/32 observations, then linearly interpolate to 64/80/96 model frames.
+openhands-semantic-eval-v4
+Release gate: exact upstream preprocessing, 24 observed frames temporally interpolated to 80 model frames.
+Requires >=80% top1 and >=95% top5 on >=6 real labeled INCLUDE reference clips.
