@@ -120,9 +120,29 @@ def _uniform(seq: np.ndarray, count: int) -> np.ndarray:
     return seq[idx]
 
 
+def _interp(seq: np.ndarray, count: int) -> np.ndarray:
+    if len(seq) == count:
+        return seq.astype(np.float32, copy=True)
+    if len(seq) < 2:
+        return np.repeat(seq, count, axis=0).astype(np.float32)
+    old=np.linspace(0.0,1.0,len(seq),dtype=np.float32)
+    new=np.linspace(0.0,1.0,count,dtype=np.float32)
+    out=np.empty((count,seq.shape[1]),dtype=np.float32)
+    for j in range(seq.shape[1]):
+        out[:,j]=np.interp(new,old,seq[:,j])
+    return out
+
+
 def evaluate(model,chosen,complexity:int,flip:bool):
     extractor=Extractor(complexity,flip)
-    variants=("full","u12","u16","u20","u24","u32","last20","last24")
+    variants=(
+        "full","full_i80",
+        "u20","u24","u32",
+        "u20_i64","u20_i80","u20_i96",
+        "u24_i64","u24_i80","u24_i96",
+        "u32_i64","u32_i80","u32_i96",
+        "last24","last24_i80",
+    )
     stats={name:{"total":0,"top1":0,"top5":0} for name in variants}
     details=[]
     try:
@@ -132,15 +152,27 @@ def evaluate(model,chosen,complexity:int,flip:bool):
                 seq=extractor.video(local)
                 if seq is None:
                     continue
+                u20=_uniform(seq,20)
+                u24=_uniform(seq,24)
+                u32=_uniform(seq,32)
+                last24=seq[-24:] if len(seq)>=24 else seq
                 sequences={
                     "full":seq,
-                    "u12":_uniform(seq,12),
-                    "u16":_uniform(seq,16),
-                    "u20":_uniform(seq,20),
-                    "u24":_uniform(seq,24),
-                    "u32":_uniform(seq,32),
-                    "last20":seq[-20:] if len(seq)>=20 else seq,
-                    "last24":seq[-24:] if len(seq)>=24 else seq,
+                    "full_i80":_interp(seq,80),
+                    "u20":u20,
+                    "u24":u24,
+                    "u32":u32,
+                    "u20_i64":_interp(u20,64),
+                    "u20_i80":_interp(u20,80),
+                    "u20_i96":_interp(u20,96),
+                    "u24_i64":_interp(u24,64),
+                    "u24_i80":_interp(u24,80),
+                    "u24_i96":_interp(u24,96),
+                    "u32_i64":_interp(u32,64),
+                    "u32_i80":_interp(u32,80),
+                    "u32_i96":_interp(u32,96),
+                    "last24":last24,
+                    "last24_i80":_interp(last24,80),
                 }
                 item={"expected":expected,"frames":len(seq),"path":row["video_path"],"variants":{}}
                 for name,candidate in sequences.items():
